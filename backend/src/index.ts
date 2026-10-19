@@ -37,6 +37,7 @@ export interface DetectionPayload {
   frame_id: string;
   detections: DetectionItem[];
   latency_ms: number;
+  fps?: number;
   timestamp: number;
 }
 
@@ -83,6 +84,7 @@ function connectToInference() {
           frame_id: string;
           detections: DetectionItem[];
           latency_ms: number;
+          fps?: number;
           timestamp: number;
           error?: string;
         };
@@ -99,6 +101,7 @@ function connectToInference() {
           frame_id: data.frame_id,
           detections: data.detections ?? [],
           latency_ms: data.latency_ms ?? 0,
+          fps: data.fps,
           timestamp: data.timestamp ?? Date.now() / 1000,
         };
 
@@ -115,6 +118,7 @@ function connectToInference() {
           frame_id: data.frame_id,
           detections: data.detections,
           latency_ms: data.latency_ms,
+          fps: data.fps,
           timestamp: data.timestamp,
         });
       } catch (err) {
@@ -181,6 +185,7 @@ const app = new Elysia()
     frame_count: frameCount,
     detection_count: detectionCount,
     viewer_count: viewerSockets.size,
+    inference_connected: inferenceReady,
     last_frame_ms: lastFrameTimestamp,
   }))
 
@@ -296,6 +301,7 @@ const app = new Elysia()
             frame_id: payload.frame_id ?? `inbound-${Date.now()}`,
             detections: payload.detections,
             latency_ms: payload.latency_ms ?? 0,
+            fps: payload.fps,
             timestamp: payload.timestamp ?? Date.now() / 1000,
           };
 
@@ -305,6 +311,7 @@ const app = new Elysia()
             frame_id: latestDetection.frame_id,
             detections: latestDetection.detections,
             latency_ms: latestDetection.latency_ms,
+            fps: latestDetection.fps,
             timestamp: latestDetection.timestamp,
           });
 

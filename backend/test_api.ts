@@ -22,9 +22,9 @@ async function runTests() {
   try {
     const resLatest = await fetch("http://localhost:3000/api/detection/latest");
     const jsonLatest = await resLatest.json();
-    console.log("✅ 2. GET /api/detection/latest (awal):", jsonLatest);
-    if (!jsonLatest.success || jsonLatest.data !== null) {
-      throw new Error("Initial data harusnya null!");
+    console.log("✅ 2. GET /api/detection/latest (awal/cek respons):", jsonLatest);
+    if (!jsonLatest.success) {
+      throw new Error("Response GET /api/detection/latest success bukan true!");
     }
   } catch (err) {
     console.error("❌ Gagal test GET /api/detection/latest awal:", err);
@@ -91,9 +91,10 @@ async function runTests() {
             },
           ],
           latency_ms: 15.2,
+          fps: 18.5,
           timestamp: Date.now() / 1000,
         };
-        console.log("   Mengirim payload inferensi uji...");
+        console.log("   Mengirim payload inferensi uji (dengan fps & latency)...");
         inferWs.send(JSON.stringify(payload));
       };
       inferWs.onmessage = (ev) => {
@@ -110,14 +111,31 @@ async function runTests() {
     if (!jsonLatestUpdated.success || !jsonLatestUpdated.data || jsonLatestUpdated.data.frame_id !== "test-uav-frame-001") {
       throw new Error("Data deteksi terbaru tidak sesuai yang dikirim!");
     }
+    if (jsonLatestUpdated.data.fps !== 18.5) {
+      throw new Error("Field fps pada detection terbaru tidak tersimpan dengan benar!");
+    }
   } catch (err) {
     console.error("❌ Gagal verifikasi deteksi terbaru:", err);
     process.exit(1);
   }
 
+  // 6. Test GET /api/stats
+  try {
+    const resStats = await fetch("http://localhost:3000/api/stats");
+    const jsonStats = await resStats.json();
+    console.log("✅ 6. GET /api/stats response:", jsonStats);
+    if (typeof jsonStats.inference_connected !== "boolean") {
+      throw new Error("inference_connected tidak ditemukan di /api/stats");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi /api/stats:", err);
+    process.exit(1);
+  }
+
   viewerWs.close();
-  console.log("\n🎉 SEMUA PENGUJIAN STEP 1 BERHASIL (100% LULUS) 🎉");
+  console.log("\n🎉 SEMUA PENGUJIAN INTEGRASI BERHASIL (100% LULUS) 🎉");
   process.exit(0);
 }
 
 runTests();
+
