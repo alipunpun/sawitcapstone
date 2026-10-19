@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+websockets==13.1
+opencv-python-headless==4.10.0.84
+numpy==2.1.3
+Pillow==11.0.0
+# Aktifkan baris ini jika model YOLO sudah siap:
+# ultralytics==8.3.27
+

@@ -1,0 +1,82 @@
+.container {
+  background: #1e293b;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heading {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.video {
+  width: 100%;
+  border-radius: 6px;
+  background: #000;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btnGreen {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #16a34a;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btnGreen:hover { background: #15803d; }
+
+.btnRed {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btnRed:hover { background: #b91c1c; }
+
+.fpsLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.slider {
+  flex: 1;
+  accent-color: #3b82f6;
+}
+
+.info {
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.info strong { color: #e2e8f0; }
+
+.green { color: #22c55e; }
+.red { color: #ef4444; }
+

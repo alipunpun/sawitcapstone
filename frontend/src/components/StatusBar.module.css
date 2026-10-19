@@ -1,0 +1,47 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #0f172a;
+  border-radius: 8px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.status {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.connected { color: #22c55e; }
+.connecting { color: #f59e0b; }
+.disconnected { color: #ef4444; }
+.error { color: #f43f5e; }
+
+.metrics {
+  display: flex;
+  gap: 16px;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.metrics strong {
+  color: #e2e8f0;
+}
+
+.btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.btn:hover {
+  background: #334155;
+}
+

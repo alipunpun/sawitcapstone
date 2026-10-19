@@ -1,0 +1,30 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  background: #000;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 16 / 9;
+  background: #1a1a2e;
+  border-radius: 8px;
+  border: 2px dashed #334155;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
