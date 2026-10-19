@@ -125,6 +125,7 @@ async def health() -> dict:
 # WebSocket
 # ---------------------------------------------------------------------------
 @app.websocket("/ws/infer")
+@app.websocket("/ws/inference")
 async def ws_infer(ws: WebSocket) -> None:
     await ws.accept()
     log.info("Backend terhubung ke inference service.")

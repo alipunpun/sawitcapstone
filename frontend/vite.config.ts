@@ -12,7 +12,12 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      // Proxy WebSocket viewer
+      // Proxy WebSocket detection & viewer
+      '/ws/detection': {
+        target: 'ws://localhost:3000',
+        ws: true,
+        changeOrigin: true,
+      },
       '/ws/view': {
         target: 'ws://localhost:3000',
         ws: true,

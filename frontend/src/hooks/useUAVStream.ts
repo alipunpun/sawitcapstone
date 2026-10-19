@@ -42,7 +42,7 @@ interface UseUAVStreamReturn {
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:3000/ws/view";
+const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:3000/ws/detection";
 
 export function useUAVStream(): UseUAVStreamReturn {
   const wsRef = useRef<WebSocket | null>(null);
