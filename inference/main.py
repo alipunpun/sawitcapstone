@@ -15,6 +15,7 @@ import json
 import logging
 import random
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
@@ -32,9 +33,40 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Metrics & State Tracking
+# ---------------------------------------------------------------------------
+START_TIME = time.time()
+TOTAL_FRAMES = 0
+TOTAL_LATENCY_MS = 0.0
+FRAME_TIMESTAMPS: deque = deque(maxlen=60)
+
+
+def record_frame_and_get_fps() -> float:
+    """Catat pemrosesan frame dan hitung frame rate (FPS)."""
+    global TOTAL_FRAMES
+    TOTAL_FRAMES += 1
+    now = time.time()
+    FRAME_TIMESTAMPS.append(now)
+    if len(FRAME_TIMESTAMPS) <= 1:
+        return 0.0
+    elapsed = now - FRAME_TIMESTAMPS[0]
+    return round(len(FRAME_TIMESTAMPS) / elapsed, 1) if elapsed > 0 else 0.0
+
+
+def get_current_fps() -> float:
+    """Hitung FPS saat ini dari frame dalam 2 detik terakhir."""
+    now = time.time()
+    recent = [t for t in FRAME_TIMESTAMPS if now - t <= 2.0]
+    if len(recent) <= 1:
+        return 0.0
+    elapsed = recent[-1] - recent[0]
+    return round(len(recent) / elapsed, 1) if elapsed > 0 else 0.0
+
+
+# ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
-app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.2.0")
+app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -114,6 +146,14 @@ def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list
 async def startup_event() -> None:
     global MODEL
     MODEL = load_model()
+    if MODEL is not None:
+        try:
+            log.info("[model] Melakukan warm-up model...")
+            dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+            MODEL(dummy, conf=0.25, verbose=False)
+            log.info("[model] Warm-up selesai, model siap untuk inferensi real-time.")
+        except Exception as e:
+            log.warning(f"[model] Warm-up gagal (non-fatal): {e}")
     log.info("Inference service siap menerima request.")
 
 
@@ -127,6 +167,24 @@ async def health() -> dict:
         "service": "inference",
         "model_loaded": MODEL is not None,
         "classes": MODEL.names if MODEL is not None else {},
+        "frames_processed": TOTAL_FRAMES,
+        "fps": get_current_fps(),
+        "timestamp": time.time(),
+    }
+
+
+@app.get("/stats")
+async def stats() -> dict:
+    avg_latency = round(TOTAL_LATENCY_MS / max(1, TOTAL_FRAMES), 2) if TOTAL_FRAMES > 0 else 0.0
+    return {
+        "status": "ok",
+        "service": "inference",
+        "model_loaded": MODEL is not None,
+        "classes": MODEL.names if MODEL is not None else {},
+        "frames_processed": TOTAL_FRAMES,
+        "avg_latency_ms": avg_latency,
+        "fps": get_current_fps(),
+        "uptime_seconds": round(time.time() - START_TIME, 1),
         "timestamp": time.time(),
     }
 
@@ -138,26 +196,37 @@ async def health() -> dict:
 @app.websocket("/ws/inference")
 async def ws_infer(ws: WebSocket) -> None:
     await ws.accept()
-    log.info("Backend terhubung ke inference service.")
+    client_info = f"{ws.client.host}:{ws.client.port}" if ws.client else "unknown"
+    log.info(f"[ws] Backend/Client terhubung ({client_info}). Total frame sebelumnya: {TOTAL_FRAMES}")
     try:
         while True:
             raw = await ws.receive_text()
             payload: dict = json.loads(raw)
 
+            # Handle ping / heartbeat
+            if payload.get("type") == "ping":
+                await ws.send_text(json.dumps({"type": "pong", "timestamp": time.time()}))
+                continue
+
             frame_b64: str = payload.get("frame", "")
             frame_id: str = payload.get("frame_id", "")
 
             if not frame_b64:
-                await ws.send_text(json.dumps({"error": "no_frame"}))
+                await ws.send_text(json.dumps({"error": "no_frame", "frame_id": frame_id}))
                 continue
 
             # Decode base64 → numpy BGR
-            img_bytes = base64.b64decode(frame_b64)
-            np_arr = np.frombuffer(img_bytes, dtype=np.uint8)
-            frame_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            try:
+                img_bytes = base64.b64decode(frame_b64)
+                np_arr = np.frombuffer(img_bytes, dtype=np.uint8)
+                frame_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            except Exception as decode_err:
+                log.warning(f"[ws] Gagal decode base64 frame {frame_id}: {decode_err}")
+                await ws.send_text(json.dumps({"error": "decode_failed", "frame_id": frame_id}))
+                continue
 
             if frame_bgr is None:
-                await ws.send_text(json.dumps({"error": "decode_failed"}))
+                await ws.send_text(json.dumps({"error": "decode_failed", "frame_id": frame_id}))
                 continue
 
             # Inferensi
@@ -165,16 +234,24 @@ async def ws_infer(ws: WebSocket) -> None:
             detections = run_inference(MODEL, frame_bgr)
             latency_ms = round((time.perf_counter() - t0) * 1000, 1)
 
+            global TOTAL_LATENCY_MS
+            TOTAL_LATENCY_MS += latency_ms
+            fps = record_frame_and_get_fps()
+
             response = {
                 "frame_id": frame_id,
                 "detections": detections,
                 "latency_ms": latency_ms,
+                "fps": fps,
                 "timestamp": time.time(),
             }
             await ws.send_text(json.dumps(response))
 
     except WebSocketDisconnect:
-        log.info("Backend memutus koneksi ke inference service.")
+        log.info(f"[ws] Backend/Client memutus koneksi. Total frame diproses: {TOTAL_FRAMES}")
     except Exception as exc:
-        log.error("Error dalam inference loop: %s", exc)
-        await ws.close(code=1011)
+        log.error(f"[ws] Error dalam inference loop: {exc}")
+        try:
+            await ws.close(code=1011)
+        except Exception:
+            pass

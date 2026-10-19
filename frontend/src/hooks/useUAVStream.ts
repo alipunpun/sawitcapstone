@@ -92,6 +92,7 @@ export function useUAVStream(): UseUAVStreamReturn {
             ...prev,
             detectionCount: prev.detectionCount + dets.length,
             latencyMs: typeof msg.latency_ms === "number" ? msg.latency_ms : prev.latencyMs,
+            fps: typeof msg.fps === "number" && msg.fps > 0 ? msg.fps : prev.fps,
           }));
         }
 
