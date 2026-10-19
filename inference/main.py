@@ -2,9 +2,9 @@
 Inference Service – Oil Palm Detection (UAV Live Stream)
 =========================================================
 Menerima frame JPEG base64 via WebSocket dari Elysia backend,
-menjalankan model deteksi objek, lalu mengembalikan bounding box + label.
+menjalankan model deteksi objek YOLOv11n, lalu mengembalikan bounding box + label.
 
-Endpoint WebSocket : ws://localhost:8000/ws/infer
+Endpoint WebSocket : ws://localhost:8000/ws/inference (dan alias /ws/infer)
 Endpoint REST      : GET /health
 """
 
@@ -15,6 +15,7 @@ import json
 import logging
 import random
 import time
+from pathlib import Path
 from typing import Any
 
 import cv2
@@ -22,6 +23,7 @@ import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+from ultralytics import YOLO
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -32,7 +34,7 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
-app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.1.0")
+app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,28 +44,35 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Model loader (ganti blok ini dengan model YOLO sesungguhnya)
+# Model loader
 # ---------------------------------------------------------------------------
-MODEL = None  # Placeholder
+MODEL_PATH = Path(__file__).parent / "oil_palm_fruit_yolov11n.pt"
+MODEL: Any = None
+
 
 def load_model() -> Any:
-    """Load YOLO/custom model. Saat ini menggunakan mock."""
-    # Contoh integrasi Ultralytics YOLO (aktifkan jika model sudah ada):
-    # from ultralytics import YOLO
-    # return YOLO("models/best.pt")
-    log.info("⚠️  Model belum di-load – menggunakan MOCK detection.")
-    return None
+    """Load model YOLO dari file .pt yang tersedia."""
+    if not MODEL_PATH.exists():
+        log.warning(f"⚠️  Model tidak ditemukan di {MODEL_PATH} – menggunakan MOCK detection.")
+        return None
+    try:
+        log.info(f"[model] Memuat model dari {MODEL_PATH} ...")
+        model = YOLO(str(MODEL_PATH))
+        log.info(f"[model] Berhasil dimuat! Kelas yang dikenali: {model.names}")
+        return model
+    except Exception as exc:
+        log.error(f"❌ Gagal memuat model: {exc}")
+        return None
 
 
-def run_inference(model: Any, frame_bgr: np.ndarray) -> list[dict]:
+def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list[dict]:
     """
     Jalankan deteksi pada sebuah frame BGR.
     Kembalikan list bounding box:
       { label, confidence, x, y, w, h }   (koordinat dalam piksel)
     """
     if model is not None:
-        # --- YOLO (Ultralytics) ---
-        results = model(frame_bgr, verbose=False)[0]
+        results = model(frame_bgr, conf=conf, verbose=False)[0]
         detections = []
         for box in results.boxes:
             x1, y1, x2, y2 = box.xyxy[0].tolist()
@@ -77,10 +86,10 @@ def run_inference(model: Any, frame_bgr: np.ndarray) -> list[dict]:
             })
         return detections
 
-    # --- MOCK: hasilkan 0-3 deteksi acak ---
+    # --- MOCK fallback jika model gagal diload ---
     h, w = frame_bgr.shape[:2]
     n = random.randint(0, 3)
-    mock_labels = ["oil_palm", "oil_palm_young", "non_palm"]
+    mock_labels = ["Betina", "Black fruits", "Jantan", "Red fruits"]
     result = []
     for _ in range(n):
         bw = random.randint(40, 120)
@@ -105,7 +114,7 @@ def run_inference(model: Any, frame_bgr: np.ndarray) -> list[dict]:
 async def startup_event() -> None:
     global MODEL
     MODEL = load_model()
-    log.info("Inference service ready.")
+    log.info("Inference service siap menerima request.")
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +126,7 @@ async def health() -> dict:
         "status": "ok",
         "service": "inference",
         "model_loaded": MODEL is not None,
+        "classes": MODEL.names if MODEL is not None else {},
         "timestamp": time.time(),
     }
 
@@ -168,4 +178,3 @@ async def ws_infer(ws: WebSocket) -> None:
     except Exception as exc:
         log.error("Error dalam inference loop: %s", exc)
         await ws.close(code=1011)
-

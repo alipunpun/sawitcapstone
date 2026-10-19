@@ -50,7 +50,8 @@ Thumbs.db
 *.swp
 *.swo
 
-# Build & Dist
+# Build & Dist & Test outputs
 dist/
 dist-ssr/
 coverage/
+output_test/
