@@ -1,10 +1,12 @@
 /**
  * useUAVStream – custom hook
  *
- * Menghubungkan ke WebSocket /ws/view dan mengelola:
+ * Menghubungkan ke WebSocket /ws/detection dan mengelola:
  *  - frame (base64 JPEG terakhir)
  *  - deteksi (bounding box terbaru)
- *  - status koneksi
+ *  - riwayat deteksi (50 frame terakhir)
+ *  - status koneksi & auto-reconnect
+ *  - statistik performa (FPS, latency, frame count)
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,6 +23,15 @@ export interface Detection {
   h: number;
 }
 
+export interface DetectionRecord {
+  frame_id: string;
+  detections: Detection[];
+  latency_ms: number;
+  fps: number;
+  timestamp: number;
+  received_at: number; // Date.now() saat diterima browser
+}
+
 export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "error";
 
 export interface Stats {
@@ -33,6 +44,8 @@ export interface Stats {
 interface UseUAVStreamReturn {
   frameDataUrl: string | null;
   detections: Detection[];
+  detectionHistory: DetectionRecord[];
+  clearHistory: () => void;
   status: ConnectionStatus;
   stats: Stats;
   connect: () => void;
@@ -43,15 +56,26 @@ interface UseUAVStreamReturn {
 // Hook
 // ---------------------------------------------------------------------------
 const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:3000/ws/detection";
+const MAX_HISTORY = 50;
 
 export function useUAVStream(): UseUAVStreamReturn {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+  const connectRef = useRef<() => void>(() => {});
+
   const [frameDataUrl, setFrameDataUrl] = useState<string | null>(null);
   const [detections, setDetections] = useState<Detection[]>([]);
+  const [detectionHistory, setDetectionHistory] = useState<DetectionRecord[]>([]);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-  const [stats, setStats] = useState<Stats>({ frameCount: 0, detectionCount: 0, latencyMs: null, fps: 0 });
+  const [stats, setStats] = useState<Stats>({
+    frameCount: 0,
+    detectionCount: 0,
+    latencyMs: null,
+    fps: 0,
+  });
 
-  // FPS tracking
+  // FPS tracking (client-side frame rendering fallback)
   const frameTimestamps = useRef<number[]>([]);
 
   const calculateFps = useCallback(() => {
@@ -60,64 +84,157 @@ export function useUAVStream(): UseUAVStreamReturn {
     return frameTimestamps.current.length;
   }, []);
 
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  const clearReconnectTimeout = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  }, []);
 
-    setStatus("connecting");
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
+  const scheduleReconnect = useCallback(() => {
+    clearReconnectTimeout();
+    if (!isMountedRef.current) return;
 
-    ws.onopen = () => {
-      setStatus("connected");
-    };
-
-    ws.onmessage = (event: MessageEvent<string>) => {
-      try {
-        const msg = JSON.parse(event.data) as Record<string, unknown>;
-
-        if (msg.type === "frame" && typeof msg.data === "string") {
-          frameTimestamps.current.push(Date.now());
-          setFrameDataUrl(`data:image/jpeg;base64,${msg.data}`);
-          setStats((prev) => ({
-            ...prev,
-            frameCount: typeof msg.frame_number === "number" ? msg.frame_number : prev.frameCount + 1,
-            fps: calculateFps(),
-          }));
-        }
-
-        if (msg.type === "detection_result") {
-          const dets = (msg.detections as Detection[]) ?? [];
-          setDetections(dets);
-          setStats((prev) => ({
-            ...prev,
-            detectionCount: prev.detectionCount + dets.length,
-            latencyMs: typeof msg.latency_ms === "number" ? msg.latency_ms : prev.latencyMs,
-            fps: typeof msg.fps === "number" && msg.fps > 0 ? msg.fps : prev.fps,
-          }));
-        }
-
-        if (msg.type === "stream_stopped") {
-          setDetections([]);
-        }
-      } catch {
-        // ignore malformed
+    reconnectTimeoutRef.current = setTimeout(() => {
+      if (
+        isMountedRef.current &&
+        (!wsRef.current ||
+          wsRef.current.readyState === WebSocket.CLOSED ||
+          wsRef.current.readyState === WebSocket.CLOSING)
+      ) {
+        connectRef.current();
       }
-    };
+    }, 3000);
+  }, [clearReconnectTimeout]);
 
-    ws.onerror = () => setStatus("error");
-    ws.onclose = () => setStatus("disconnected");
-  }, [calculateFps]);
+  const connect = useCallback(() => {
+    if (
+      wsRef.current?.readyState === WebSocket.OPEN ||
+      wsRef.current?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+
+    clearReconnectTimeout();
+    setStatus("connecting");
+
+    try {
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!isMountedRef.current) return;
+        setStatus("connected");
+      };
+
+      ws.onmessage = (event: MessageEvent<string>) => {
+        if (!isMountedRef.current) return;
+        try {
+          const msg = JSON.parse(event.data) as Record<string, unknown>;
+
+          if (msg.type === "frame" && typeof msg.data === "string") {
+            frameTimestamps.current.push(Date.now());
+            setFrameDataUrl(`data:image/jpeg;base64,${msg.data}`);
+            setStats((prev) => ({
+              ...prev,
+              frameCount:
+                typeof msg.frame_number === "number" ? msg.frame_number : prev.frameCount + 1,
+              fps: calculateFps(),
+            }));
+          }
+
+          if (msg.type === "detection_result") {
+            const dets = (msg.detections as Detection[]) ?? [];
+            const latency = typeof msg.latency_ms === "number" ? msg.latency_ms : 0;
+            const currentFps = typeof msg.fps === "number" && msg.fps > 0 ? msg.fps : 0;
+            const frameId =
+              typeof msg.frame_id === "string" ? msg.frame_id : `f-${Date.now()}`;
+            const timestamp =
+              typeof msg.timestamp === "number" ? msg.timestamp : Date.now() / 1000;
+
+            setDetections(dets);
+            setStats((prev) => ({
+              ...prev,
+              detectionCount: prev.detectionCount + dets.length,
+              latencyMs: typeof msg.latency_ms === "number" ? msg.latency_ms : prev.latencyMs,
+              fps: currentFps > 0 ? currentFps : prev.fps,
+            }));
+
+            const record: DetectionRecord = {
+              frame_id: frameId,
+              detections: dets,
+              latency_ms: latency,
+              fps: currentFps,
+              timestamp: timestamp,
+              received_at: Date.now(),
+            };
+
+            setDetectionHistory((prev) => [record, ...prev].slice(0, MAX_HISTORY));
+          }
+
+          if (msg.type === "stream_stopped") {
+            setDetections([]);
+          }
+        } catch {
+          // ignore malformed
+        }
+      };
+
+      ws.onerror = () => {
+        if (!isMountedRef.current) return;
+        setStatus("error");
+      };
+
+      ws.onclose = () => {
+        if (!isMountedRef.current) return;
+        setStatus("disconnected");
+        scheduleReconnect();
+      };
+    } catch {
+      setStatus("error");
+      scheduleReconnect();
+    }
+  }, [calculateFps, clearReconnectTimeout, scheduleReconnect]);
+
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
-    wsRef.current?.close();
-    wsRef.current = null;
+    clearReconnectTimeout();
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    setStatus("disconnected");
+  }, [clearReconnectTimeout]);
+
+  const clearHistory = useCallback(() => {
+    setDetectionHistory([]);
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
 
-  return { frameDataUrl, detections, status, stats, connect, disconnect };
+    return () => {
+      isMountedRef.current = false;
+      clearReconnectTimeout();
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [connect, clearReconnectTimeout]);
+
+  return {
+    frameDataUrl,
+    detections,
+    detectionHistory,
+    clearHistory,
+    status,
+    stats,
+    connect,
+    disconnect,
+  };
 }
-
