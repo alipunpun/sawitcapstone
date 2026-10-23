@@ -81,12 +81,19 @@ Sistem pemantauan dan deteksi tandan kelapa sawit secara real-time dari video li
   - [`inference/test_integration.py`](file:///e:/Kuliah/Capstone/code/inference/test_integration.py): Menguji alur lengkap end-to-end stream hingga data deteksi tiba di viewer.
   - [`backend/test_api.ts`](file:///e:/Kuliah/Capstone/code/backend/test_api.ts): Verifikasi otomatis seluruh endpoint REST & WebSocket backend.
 
-### 4. Frontend Pemantauan Real-Time
-- **Dashboard Monitoring**:
-  - Video player interaktif dengan toggle bounding box overlay.
-  - Panel daftar deteksi real-time (label kelas, confidence bar).
-  - Status bar (indikator koneksi, frame counter, total deteksi, inferensi FPS, dan latensi ms).
-  - Simulator video terintegrasi (webcam / synthetic frame) langsung dari UI browser.
+### 4. Dashboard Pemantauan Real-Time (Step 4)
+- **Komponen Dashboard Monitoring**:
+  - **StatsCards**: 4 kartu ringkasan performa real-time (Total Frames, Total Deteksi, FPS Inferensi, Latensi Model).
+  - **VideoStream**: Pemutar video canvas interaktif dengan toggle overlay bounding box dan warna kelas yang akurat.
+  - **DetectionPanel**: Panel deteksi frame aktif dengan ringkasan jumlah per kelas, bar confidence, dan koordinat bounding box.
+  - **DetectionHistory**: Tabel riwayat 50 deteksi terbaru dengan timestamp waktu, frame ID, jumlah objek, label kelas unik, latensi, dan FPS.
+  - **StatusBar**: Indikator status koneksi WebSocket API dengan tombol reconnect manual dan mekanisme auto-reconnect 3 detik.
+  - **UAVSimulator**: Simulator feed video UAV terintegrasi (webcam / pola uji sintetis) langsung dari browser.
+- **Standarisasi Warna Kelas Sawit**:
+  - `Betina`: Ungu (`#a855f7`)
+  - `Black fruits`: Abu-abu (`#64748b`)
+  - `Jantan`: Biru (`#3b82f6`)
+  - `Red fruits`: Merah (`#ef4444`)
 
 ---
 
@@ -103,9 +110,10 @@ code/
 │
 ├── frontend/                 # Frontend React + Vite + TypeScript
 │   ├── src/
-│   │   ├── components/       # VideoStream, DetectionPanel, StatusBar, UAVSimulator
-│   │   ├── hooks/            # useUAVStream (WebSocket client & auto-reconnect)
-│   │   ├── App.tsx
+│   │   ├── components/       # VideoStream, DetectionPanel, DetectionHistory, StatsCards, StatusBar, UAVSimulator
+│   │   ├── hooks/            # useUAVStream (WebSocket client, history tracking & auto-reconnect)
+│   │   ├── utils/            # labels.ts (definisi kelas sawit & pemetaan warna)
+│   │   ├── App.tsx           # Layout utama dashboard
 │   │   └── main.tsx
 │   ├── package.json
 │   └── vite.config.ts

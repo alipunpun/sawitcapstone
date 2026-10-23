@@ -1,9 +1,11 @@
 /**
- * App.tsx – Halaman utama monitoring UAV Oil Palm Detection
+ * App.tsx – Dashboard Utama Monitoring UAV Oil Palm Detection
  */
 
 import { useState } from "react";
+import { DetectionHistory } from "./components/DetectionHistory";
 import { DetectionPanel } from "./components/DetectionPanel";
+import { StatsCards } from "./components/StatsCards";
 import { StatusBar } from "./components/StatusBar";
 import { UAVSimulator } from "./components/UAVSimulator";
 import { VideoStream } from "./components/VideoStream";
@@ -11,7 +13,16 @@ import { useUAVStream } from "./hooks/useUAVStream";
 import "./App.css";
 
 function App() {
-  const { frameDataUrl, detections, status, stats, connect } = useUAVStream();
+  const {
+    frameDataUrl,
+    detections,
+    detectionHistory,
+    clearHistory,
+    status,
+    stats,
+    connect,
+  } = useUAVStream();
+
   const [showOverlay, setShowOverlay] = useState(true);
   const [showSimulator, setShowSimulator] = useState(false);
 
@@ -19,7 +30,13 @@ function App() {
     <div className="app">
       {/* Header */}
       <header className="header">
-        <h1>🌴 UAV Oil Palm Detection</h1>
+        <div className="header-brand">
+          <h1>🌴 UAV Oil Palm Detection</h1>
+          <p className="header-subtitle">
+            Sistem Pemantauan & Deteksi Tandan Buah Sawit Real-Time (Member 3)
+          </p>
+        </div>
+
         <div className="header-controls">
           <label className="toggle">
             <input
@@ -27,7 +44,7 @@ function App() {
               checked={showOverlay}
               onChange={(e) => setShowOverlay(e.target.checked)}
             />
-            Overlay deteksi
+            Overlay Bounding Box
           </label>
           <label className="toggle">
             <input
@@ -35,7 +52,7 @@ function App() {
               checked={showSimulator}
               onChange={(e) => setShowSimulator(e.target.checked)}
             />
-            Simulator (webcam)
+            Simulator Stream (Webcam)
           </label>
         </div>
       </header>
@@ -43,9 +60,11 @@ function App() {
       {/* Status Bar */}
       <StatusBar status={status} stats={stats} onReconnect={connect} />
 
-      {/* Main layout */}
+      {/* Kartu Ringkasan Statistik */}
+      <StatsCards stats={stats} />
+
+      {/* Area Utama: Video Stream & Sidebar Deteksi */}
       <main className="main">
-        {/* Video utama */}
         <section className="video-section">
           <VideoStream
             frameDataUrl={frameDataUrl}
@@ -54,12 +73,19 @@ function App() {
           />
         </section>
 
-        {/* Sidebar */}
         <aside className="sidebar">
           <DetectionPanel detections={detections} />
           {showSimulator && <UAVSimulator />}
         </aside>
       </main>
+
+      {/* Tabel Riwayat Deteksi Terbaru */}
+      <section className="history-section">
+        <DetectionHistory
+          history={detectionHistory}
+          onClear={clearHistory}
+        />
+      </section>
     </div>
   );
 }

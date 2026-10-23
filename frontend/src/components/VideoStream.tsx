@@ -4,22 +4,13 @@
 
 import { useEffect, useRef } from "react";
 import type { Detection } from "../hooks/useUAVStream";
+import { getLabelColor } from "../utils/labels";
 import styles from "./VideoStream.module.css";
 
 interface Props {
   frameDataUrl: string | null;
   detections: Detection[];
   showOverlay?: boolean;
-}
-
-const LABEL_COLORS: Record<string, string> = {
-  oil_palm: "#22c55e",
-  oil_palm_young: "#f59e0b",
-  non_palm: "#ef4444",
-};
-
-function getColor(label: string): string {
-  return LABEL_COLORS[label] ?? "#3b82f6";
 }
 
 export function VideoStream({ frameDataUrl, detections, showOverlay = true }: Props) {
@@ -42,19 +33,24 @@ export function VideoStream({ frameDataUrl, detections, showOverlay = true }: Pr
 
       if (showOverlay) {
         for (const det of detections) {
-          const color = getColor(det.label);
+          const color = getLabelColor(det.label);
           ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 3;
           ctx.strokeRect(det.x, det.y, det.w, det.h);
 
-          // Label background
+          // Label text & background
           const label = `${det.label} ${(det.confidence * 100).toFixed(0)}%`;
-          ctx.font = "bold 12px sans-serif";
-          const textW = ctx.measureText(label).width + 8;
+          ctx.font = "bold 13px system-ui, sans-serif";
+          const textW = ctx.measureText(label).width + 10;
+          const textH = 20;
+
+          // Background pill
           ctx.fillStyle = color;
-          ctx.fillRect(det.x, det.y - 18, textW, 18);
-          ctx.fillStyle = "#fff";
-          ctx.fillText(label, det.x + 4, det.y - 4);
+          ctx.fillRect(det.x, Math.max(0, det.y - textH), textW, textH);
+
+          // Text
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, det.x + 5, Math.max(14, det.y - 5));
         }
       }
     };
@@ -76,4 +72,3 @@ export function VideoStream({ frameDataUrl, detections, showOverlay = true }: Pr
     </div>
   );
 }
-
