@@ -55,7 +55,20 @@ interface UseUAVStreamReturn {
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
-const WS_URL = import.meta.env.VITE_WS_URL ?? "ws://localhost:3000/ws/detection";
+function getWebSocketUrl(): string {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  const hostname =
+    typeof window !== "undefined" && window.location.hostname
+      ? window.location.hostname
+      : "localhost";
+  const protocol =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "wss:"
+      : "ws:";
+  return `${protocol}//${hostname}:3000/ws/detection`;
+}
 const MAX_HISTORY = 50;
 
 export function useUAVStream(): UseUAVStreamReturn {
@@ -119,7 +132,7 @@ export function useUAVStream(): UseUAVStreamReturn {
     setStatus("connecting");
 
     try {
-      const ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(getWebSocketUrl());
       wsRef.current = ws;
 
       ws.onopen = () => {

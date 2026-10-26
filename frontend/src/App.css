@@ -131,3 +131,22 @@ body {
     width: 100%;
   }
 }
+
+@media (max-width: 640px) {
+  .app {
+    padding: 12px;
+    gap: 12px;
+  }
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .header-brand h1 {
+    font-size: 1.25rem;
+  }
+  .header-controls {
+    justify-content: space-between;
+    width: 100%;
+  }
+}

@@ -255,3 +255,9 @@ async def ws_infer(ws: WebSocket) -> None:
             await ws.close(code=1011)
         except Exception:
             pass
+
+
+if __name__ == "__main__":
+    import uvicorn
+    log.info("Memulai Uvicorn server pada 0.0.0.0:8000 (akses LAN aktif) ...")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
