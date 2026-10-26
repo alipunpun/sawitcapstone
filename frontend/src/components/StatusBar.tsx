@@ -1,5 +1,5 @@
 /**
- * StatusBar – indikator koneksi dan statistik
+ * StatusBar – indikator koneksi dan ringkasan status WebSocket
  */
 
 import type { ConnectionStatus, Stats } from "../hooks/useUAVStream";
@@ -12,10 +12,10 @@ interface Props {
 }
 
 const STATUS_LABEL: Record<ConnectionStatus, string> = {
-  connected: "● Terhubung",
+  connected: "● WebSocket Terhubung ke API",
   connecting: "○ Menghubungkan...",
-  disconnected: "✕ Terputus",
-  error: "⚠ Error",
+  disconnected: "✕ WebSocket Terputus (Auto-reconnect aktif)",
+  error: "⚠ Koneksi Error (Auto-reconnect aktif)",
 };
 
 const STATUS_CLASS: Record<ConnectionStatus, string> = {
@@ -40,21 +40,20 @@ export function StatusBar({ status, stats, onReconnect }: Props) {
           <strong>{stats.detectionCount.toLocaleString()}</strong> deteksi
         </span>
         <span title="Frames per detik">
-          <strong>{stats.fps}</strong> fps
+          <strong>{stats.fps > 0 ? stats.fps.toFixed(1) : "0.0"}</strong> fps
         </span>
         {stats.latencyMs !== null && (
           <span title="Latency inferensi">
-            <strong>{stats.latencyMs}</strong> ms
+            <strong>{stats.latencyMs.toFixed(1)}</strong> ms
           </span>
         )}
       </div>
 
       {status !== "connected" && (
-        <button className={styles.btn} onClick={onReconnect}>
-          Reconnect
+        <button className={styles.btn} onClick={onReconnect} title="Paksa koneksi ulang sekarang">
+          Reconnect Sekarang
         </button>
       )}
     </div>
   );
 }
-
