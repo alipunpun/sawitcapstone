@@ -143,3 +143,4 @@ Untuk keperluan presentasi sidang Capstone:
    - **Adegan 2 (0:30 - 1:00):** Tunjukkan interaktivitas dashboard: toggle overlay bounding box, tabel DetectionHistory yang bertambah secara real-time, dan kartu statistik (FPS, Confidence, Latency).
    - **Adegan 3 (1:00 - 1:30):** Uji ketahanan (*failover test*). Matikan service Python (`Ctrl+C`). Tunjukkan status tetap aman. Hidupkan kembali Python dan tunjukkan pemulihan otomatis dalam 3 detik tanpa refresh.
    - **Adegan 4 (1:30 - 2:00):** Penutup dan kesimpulan pemenuhan luaran Capstone.
+

@@ -35,6 +35,7 @@ Sistem pemantauan dan deteksi tandan kelapa sawit secara real-time dari video li
 ### 1. Backend & API Dasar (Step 1)
 - **Runtime Bun & ElysiaJS**: Backend modern berkinerja tinggi.
 - **REST Endpoints**:
+  - `GET /`: Status ringkasan servis, versi API, dan direktori endpoint.
   - `GET /api/health`: Status server dan status koneksi ke service inferensi (`inference_connected`).
   - `GET /api/detection/latest`: Mengambil hasil deteksi objek kelapa sawit terakhir.
   - `GET /api/stats`: Metrik frame count, total deteksi, jumlah viewer aktif, dan status inferensi.
@@ -177,7 +178,8 @@ python -m venv .venv
 pip install -r requirements.txt
 
 # Jalankan inference service (port 8000)
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+python main.py
+# atau: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Health Check: `http://localhost:8000/health`
 - Stats & Metrik: `http://localhost:8000/stats`
@@ -194,6 +196,7 @@ bun install
 # Jalankan server pengembangan (port 3000)
 bun run dev
 ```
+- REST API Index: `http://localhost:3000/`
 - REST API Health: `http://localhost:3000/api/health`
 - REST API Latest: `http://localhost:3000/api/detection/latest`
 - REST API Stats: `http://localhost:3000/api/stats`
@@ -215,24 +218,27 @@ Buka browser pada: **`http://localhost:5173`**
 
 1. **Pastikan Laptop dan Smartphone terhubung ke jaringan Wi-Fi yang sama**.
 2. **Ketahui alamat IP LAN Laptop**:
-   - Di Windows: Buka Command Prompt/PowerShell, ketik `ipconfig`, cari **IPv4 Address** pada Wi-Fi adapter (contoh: `192.168.1.100`).
+   - Di Windows: Buka PowerShell, ketik `ipconfig`, cari **IPv4 Address** pada Wi-Fi adapter (contoh: `192.168.1.5`).
 3. **Buka Dashboard dari Smartphone**:
    - Buka browser di HP (Chrome / Safari), ketik:
      ```
      http://<IP-LAN-LAPTOP>:5173
-     # Contoh: http://192.168.1.100:5173
+     # Contoh: http://192.168.1.5:5173
      ```
-   - WebSocket akan otomatis terhubung ke `ws://<IP-LAN-LAPTOP>:3000/ws/detection`.
-   - *Catatan Troubleshooting*: Jika HP tidak bisa membuka halaman, pastikan port 5173 dan 3000 diizinkan oleh Windows Defender Firewall.
+   - WebSocket akan otomatis tersambung ke server laptop via Vite proxy (`ws://<IP-LAN-LAPTOP>:5173/ws/detection`) tanpa terhambat Windows Firewall.
+4. **Catatan Akses Kamera di Chrome HP (Opsional)**:
+   - Standar keamanan Google Chrome melarang akses webcam/kamera pada alamat HTTP non-localhost.
+   - Jika ingin menggunakan kamera fisik HP untuk simulator: buka `chrome://flags/#unsafely-treat-insecure-origin-as-secure` di Chrome HP, pilih **Enabled**, masukkan `http://<IP-LAN-LAPTOP>:5173`, lalu tekan **Relaunch**.
+   - Pada penggunaan standar Capstone, HP difungsikan sebagai **Layar Pantau (Viewer)**; feed video UAV dialirkan dari laptop via simulator.
 
 ### 5. Mengirim Stream Video UAV (Uji Coba)
 
 Terdapat 2 opsi untuk mengirim feed video ke sistem:
 
-**Opsi A: Melalui Browser UI (Paling Mudah)**
+**Opsi A: Melalui Browser UI (Webcam Laptop/PC)**
 1. Buka dashboard di `http://localhost:5173`.
 2. Centang checkbox **Simulator (webcam)** di sudut kanan atas.
-3. Klik **Mulai Stream Webcam** atau **Gunakan Pola Uji**.
+3. Klik **Mulai Stream** untuk mengalirkan webcam ke backend.
 
 **Opsi B: Melalui Script Simulator CLI**
 ```bash
