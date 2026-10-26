@@ -59,15 +59,16 @@ function getWebSocketUrl(): string {
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
   }
-  const hostname =
-    typeof window !== "undefined" && window.location.hostname
-      ? window.location.hostname
-      : "localhost";
-  const protocol =
-    typeof window !== "undefined" && window.location.protocol === "https:"
-      ? "wss:"
-      : "ws:";
-  return `${protocol}//${hostname}:3000/ws/detection`;
+  if (typeof window === "undefined") {
+    return "ws://localhost:3000/ws/detection";
+  }
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  // Gunakan host dan port yang sama dengan browser (misal 192.168.1.5:5173 via Vite proxy).
+  // Ini memastikan perangkat HP di LAN tidak perlu membuka port 3000 yang sering diblokir Windows Firewall.
+  if (window.location.host) {
+    return `${protocol}//${window.location.host}/ws/detection`;
+  }
+  return `${protocol}//${window.location.hostname}:3000/ws/detection`;
 }
 const MAX_HISTORY = 50;
 
