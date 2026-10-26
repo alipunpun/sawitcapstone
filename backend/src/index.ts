@@ -166,6 +166,24 @@ function broadcastToViewers(message: object) {
 // ---------------------------------------------------------------------------
 const app = new Elysia()
 
+  // --- Root index ---
+  .get("/", () => ({
+    name: "UAV Oil Palm Detection API",
+    service: "oil-palm-detection-api",
+    status: "running",
+    version: "1.0.0",
+    inference_connected: inferenceReady,
+    endpoints: {
+      health: "/api/health",
+      stats: "/api/stats",
+      latest_detection: "/api/detection/latest",
+      ws_stream: "/ws/stream",
+      ws_detection: "/ws/detection",
+      ws_inference: "/ws/inference",
+    },
+    timestamp: Date.now(),
+  }))
+
   // --- Health check ---
   .get("/api/health", () => ({
     success: true,

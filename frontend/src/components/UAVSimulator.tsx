@@ -12,13 +12,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./UAVSimulator.module.css";
 
 function getStreamWsUrl(): string {
-  if (import.meta.env.VITE_STREAM_WS_URL) {
-    return import.meta.env.VITE_STREAM_WS_URL;
-  }
   if (typeof window === "undefined") {
     return "ws://localhost:3000/ws/stream";
   }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+
+  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return `${protocol}//${window.location.host}/ws/stream`;
+  }
+
+  if (import.meta.env.VITE_STREAM_WS_URL) {
+    return import.meta.env.VITE_STREAM_WS_URL;
+  }
+
   if (window.location.host) {
     return `${protocol}//${window.location.host}/ws/stream`;
   }
