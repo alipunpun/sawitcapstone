@@ -107,6 +107,18 @@ Sistem pemantauan dan deteksi tandan kelapa sawit secara real-time dari video li
   - [`inference/test_uav_simulation.py`](file:///e:/Kuliah/Capstone/code/inference/test_uav_simulation.py) untuk benchmark otomatis aliran stream dan komparasi domain gap.
   - Laporan lengkap didokumentasikan di [`inference/results_step5.md`](file:///e:/Kuliah/Capstone/code/inference/results_step5.md) yang mengupas perbedaan perspektif citra permukaan (*ground-level*) vs sudut udara (*aerial UAV top-down*), masalah oklusi pelepah (*frond occlusion*), variasi skala, dan rekomendasi fine-tuning.
 
+### 6. Akses Multi-Perangkat (Mobile Web LAN) & Pengujian Akhir (Step 6)
+- **Akses Multi-Device Jaringan Lokal (Wi-Fi/LAN)**:
+  - Backend Elysia dan Frontend Vite dikonfigurasi bind ke `0.0.0.0`, memungkinkan akses langsung dari perangkat mobile (HP/Tablet) pada jaringan Wi-Fi yang sama tanpa perlu aplikasi terpisah (React Native).
+  - Resolusi WebSocket host dinamis (`window.location.hostname`) memastikan perangkat mobile otomatis terhubung ke IP server laptop.
+- **Sinkronisasi Multi-Viewer Real-Time**:
+  - Elysia menyiarkan aliran video dan hasil deteksi ke seluruh browser yang terhubung secara paralel (*non-blocking*).
+- **Ketahanan Sistem (*Failover & Auto-Reconnect*)**:
+  - Teruji mandiri memulihkan koneksi dalam waktu **<= 3.5 detik** saat service Python atau Backend dihentikan sementara.
+- **Pengujian Multi-Client & Rekapitulasi Akhir**:
+  - [`inference/test_multi_client_lan.py`](file:///e:/Kuliah/Capstone/code/inference/test_multi_client_lan.py) untuk menguji siaran multi-viewer simultan dan mengumpulkan metrik.
+  - Dokumentasi evaluasi akhir dan panduan video demonstrasi tercantum di [`inference/results_step6.md`](file:///e:/Kuliah/Capstone/code/inference/results_step6.md).
+
 ---
 
 ## 📁 Struktur Folder Proyek
@@ -137,10 +149,12 @@ code/
     ├── test_images/          # Sampel citra buah sawit untuk pengujian
     ├── test_model.py         # Skrip pengujian deteksi model pada gambar/video
     ├── test_integration.py   # Skrip pengujian integrasi otomatis Python ↔ API
-    └── uav_simulator.py      # Simulator CLI pengiriman frame UAV/video/webcam ke backend
+    ├── uav_simulator.py      # Simulator CLI pengiriman frame UAV/video/webcam ke backend
     ├── test_uav_simulation.py# Skrip pengujian streaming UAV & evaluasi domain gap
+    ├── test_multi_client_lan.py # Skrip pengujian multi-viewer LAN & rekapitulasi akhir
     ├── generate_uav_test_video.py # Generator video simulasi penerbangan UAV
-    └── results_step5.md      # Laporan pengujian performa stream & analisis domain gap
+    ├── results_step5.md      # Laporan pengujian performa stream & analisis domain gap
+    └── results_step6.md      # Laporan pengujian akhir multi-device & evaluasi Capstone
 ```
 
 ---
@@ -197,7 +211,21 @@ bun run dev
 ```
 Buka browser pada: **`http://localhost:5173`**
 
-### 4. Mengirim Stream Video UAV (Uji Coba)
+### 4. Akses Multi-Perangkat dari Smartphone / Tablet (Wi-Fi/LAN)
+
+1. **Pastikan Laptop dan Smartphone terhubung ke jaringan Wi-Fi yang sama**.
+2. **Ketahui alamat IP LAN Laptop**:
+   - Di Windows: Buka Command Prompt/PowerShell, ketik `ipconfig`, cari **IPv4 Address** pada Wi-Fi adapter (contoh: `192.168.1.100`).
+3. **Buka Dashboard dari Smartphone**:
+   - Buka browser di HP (Chrome / Safari), ketik:
+     ```
+     http://<IP-LAN-LAPTOP>:5173
+     # Contoh: http://192.168.1.100:5173
+     ```
+   - WebSocket akan otomatis terhubung ke `ws://<IP-LAN-LAPTOP>:3000/ws/detection`.
+   - *Catatan Troubleshooting*: Jika HP tidak bisa membuka halaman, pastikan port 5173 dan 3000 diizinkan oleh Windows Defender Firewall.
+
+### 5. Mengirim Stream Video UAV (Uji Coba)
 
 Terdapat 2 opsi untuk mengirim feed video ke sistem:
 
@@ -261,3 +289,13 @@ python test_uav_simulation.py --domain-gap-only
 python test_uav_simulation.py --duration 10 --fps 15
 ```
 *Laporan hasil pengujian dan analisis lengkap tersedia di [`inference/results_step5.md`](file:///e:/Kuliah/Capstone/code/inference/results_step5.md).*
+### 5. Uji Multi-Viewer Broadcast & Rekapitulasi Akhir Capstone (Step 6)
+```bash
+cd inference
+# Jalankan uji simultan multi-viewer (Laptop + HP + Tablet) dan rekapitulasi data:
+python test_multi_client_lan.py --duration 5 --fps 15
+
+# Atau tampilkan tabel rekapitulasi metrik akhir saja:
+python test_multi_client_lan.py --recap-only
+```
+*Laporan evaluasi sistem dan panduan video demonstrasi tersedia di [`inference/results_step6.md`](file:///e:/Kuliah/Capstone/code/inference/results_step6.md).*

@@ -11,7 +11,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./UAVSimulator.module.css";
 
-const STREAM_WS_URL = import.meta.env.VITE_STREAM_WS_URL ?? "ws://localhost:3000/ws/stream";
+function getStreamWsUrl(): string {
+  if (import.meta.env.VITE_STREAM_WS_URL) {
+    return import.meta.env.VITE_STREAM_WS_URL;
+  }
+  const hostname =
+    typeof window !== "undefined" && window.location.hostname
+      ? window.location.hostname
+      : "localhost";
+  const protocol =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "wss:"
+      : "ws:";
+  return `${protocol}//${hostname}:3000/ws/stream`;
+}
+
 const DEFAULT_FPS = 10;
 const JPEG_QUALITY = 0.7;
 
@@ -28,7 +42,7 @@ export function UAVSimulator() {
 
   const connectWs = useCallback(() => {
     setWsStatus("connecting");
-    const ws = new WebSocket(STREAM_WS_URL);
+    const ws = new WebSocket(getStreamWsUrl());
     wsRef.current = ws;
     ws.onopen = () => setWsStatus("connected");
     ws.onclose = () => setWsStatus("disconnected");

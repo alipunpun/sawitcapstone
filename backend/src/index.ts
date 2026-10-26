@@ -46,6 +46,7 @@ export interface DetectionPayload {
 // ---------------------------------------------------------------------------
 const INFERENCE_WS_URL = process.env.INFERENCE_WS_URL ?? "ws://localhost:8000/ws/inference";
 const BACKEND_PORT = Number(process.env.PORT ?? 3000);
+const BACKEND_HOST = process.env.HOST ?? "0.0.0.0";
 
 // ---------------------------------------------------------------------------
 // State
@@ -329,7 +330,7 @@ const app = new Elysia()
     },
   })
 
-  .listen(BACKEND_PORT);
+  .listen({ port: BACKEND_PORT, hostname: BACKEND_HOST });
 
 // ---------------------------------------------------------------------------
 // Sambungkan ke Python inference service
@@ -339,6 +340,7 @@ connectToInference();
 console.log(
   `\n🚀 Elysia berjalan di http://${app.server?.hostname}:${app.server?.port}`,
 );
+console.log(`   Akses LAN/Mobile : http://<IP-LAN>:${BACKEND_PORT}`);
 console.log("   REST API Health  : http://localhost:3000/api/health");
 console.log("   REST API Latest  : http://localhost:3000/api/detection/latest");
 console.log("   WS sumber video  : ws://localhost:3000/ws/stream");
