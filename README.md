@@ -95,6 +95,18 @@ Sistem pemantauan dan deteksi tandan kelapa sawit secara real-time dari video li
   - `Jantan`: Biru (`#3b82f6`)
   - `Red fruits`: Merah (`#ef4444`)
 
+### 5. Simulasi Aliran Video UAV & Analisis Generalisasi Domain Gap (Step 5)
+- **Simulasi Tanpa Hardware Fisik**: Sesuai Subbab 1.5 Batasan Masalah, pengujian penerbangan dan streaming drone diuji secara penuh menggunakan simulator rekaman udara dan video sintetis.
+- **Enhanced UAV Stream Simulator**:
+  - Mendukung rekaman video UAV (`.mp4`), webcam (`0`), streaming drone sintetis (`sim`), dan pola uji (`test`) dengan target 15 FPS.
+  - Dilengkapi On-Screen Display (OSD) telemetry khas drone: Ketinggian (*altitude*), Kecepatan (*ground speed*), GPS latitude/longitude, status baterai, crosshair gimbal, dan horizon pitch.
+  - Auto-reconnection cerdas dan pelaporan statistik throughput bandwidth (KB/s).
+- **Generator Video UAV**:
+  - [`inference/generate_uav_test_video.py`](file:///e:/Kuliah/Capstone/code/inference/generate_uav_test_video.py) untuk memproduksi video simulasi penerbangan drone di atas perkebunan sawit.
+- **Evaluasi & Analisis Domain Gap**:
+  - [`inference/test_uav_simulation.py`](file:///e:/Kuliah/Capstone/code/inference/test_uav_simulation.py) untuk benchmark otomatis aliran stream dan komparasi domain gap.
+  - Laporan lengkap didokumentasikan di [`inference/results_step5.md`](file:///e:/Kuliah/Capstone/code/inference/results_step5.md) yang mengupas perbedaan perspektif citra permukaan (*ground-level*) vs sudut udara (*aerial UAV top-down*), masalah oklusi pelepah (*frond occlusion*), variasi skala, dan rekomendasi fine-tuning.
+
 ---
 
 ## 📁 Struktur Folder Proyek
@@ -125,7 +137,10 @@ code/
     ├── test_images/          # Sampel citra buah sawit untuk pengujian
     ├── test_model.py         # Skrip pengujian deteksi model pada gambar/video
     ├── test_integration.py   # Skrip pengujian integrasi otomatis Python ↔ API
-    └── uav_simulator.py      # Simulator CLI pengiriman frame video/webcam ke backend
+    └── uav_simulator.py      # Simulator CLI pengiriman frame UAV/video/webcam ke backend
+    ├── test_uav_simulation.py# Skrip pengujian streaming UAV & evaluasi domain gap
+    ├── generate_uav_test_video.py # Generator video simulasi penerbangan UAV
+    └── results_step5.md      # Laporan pengujian performa stream & analisis domain gap
 ```
 
 ---
@@ -197,13 +212,19 @@ cd inference
 .venv\Scripts\activate
 
 # Menggunakan pola uji sintetis (tanpa kamera):
-python uav_simulator.py --source test --fps 10
+python uav_simulator.py --source test --fps 15
 
 # Atau menggunakan webcam laptop/PC:
 python uav_simulator.py --source 0 --fps 15
 
 # Atau menggunakan file video rekaman:
-python uav_simulator.py --source video_sawit.mp4 --fps 15
+python uav_simulator.py --source test_videos/uav_sawit_flight.mp4 --fps 15
+
+# Menggunakan mode penerbangan UAV sintetis (otomatis mengolah citra sawit):
+python uav_simulator.py --source sim --fps 15
+
+# Atau membuat ulang video simulasi penerbangan:
+python generate_uav_test_video.py
 ```
 
 ---
@@ -229,3 +250,14 @@ bun test_api.ts
 cd inference
 python test_model.py
 ```
+
+### 4. Uji Simulasi Aliran Video UAV & Analisis Domain Gap (Step 5)
+```bash
+cd inference
+# Evaluasi domain gap offline (perbandingan ground-level vs aerial UAV):
+python test_uav_simulation.py --domain-gap-only
+
+# Atau jalankan uji streaming end-to-end 15 FPS (pastikan Backend dan Python aktif):
+python test_uav_simulation.py --duration 10 --fps 15
+```
+*Laporan hasil pengujian dan analisis lengkap tersedia di [`inference/results_step5.md`](file:///e:/Kuliah/Capstone/code/inference/results_step5.md).*
