@@ -1,4 +1,4 @@
-# UAV Oil Palm Detection (Member 3)
+# UAV Oil Palm Detection
 
 Sistem pemantauan dan deteksi tandan kelapa sawit secara real-time dari video live stream UAV / Drone menggunakan **React + Vite + TypeScript**, **ElysiaJS + Bun**, **WebSocket**, dan **Python YOLO Inference Service**.
 
