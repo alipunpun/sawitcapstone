@@ -56,3 +56,13 @@ dist-ssr/
 coverage/
 output_test/
 issue.md
+
+# UAV Simulation & Video assets
+inference/test_videos/
+test_videos/
+*.mp4
+*.avi
+*.mkv
+
+# Codegraph
+.codegraph/
