@@ -1,0 +1,38 @@
+# YOLO11s + CBAM  (khusus skala 's': channel di argumen CBAMAttention sudah terskala width=0.5)
+nc: 5
+scales:
+  s: [0.50, 0.50, 1024]   # depth, width, max_channels
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]            # 0  P1/2
+  - [-1, 1, Conv, [128, 3, 2]]           # 1  P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]    # 2
+  - [-1, 1, Conv, [256, 3, 2]]           # 3  P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]]    # 4  (256ch)
+  - [-1, 1, CBAMAttention, [256]]        # 5  <<< CBAM backbone P3
+  - [-1, 1, Conv, [512, 3, 2]]           # 6  P4/16
+  - [-1, 2, C3k2, [512, True]]           # 7  (256ch)
+  - [-1, 1, CBAMAttention, [256]]        # 8  <<< CBAM backbone P4
+  - [-1, 1, Conv, [1024, 3, 2]]          # 9  P5/32
+  - [-1, 2, C3k2, [1024, True]]          # 10 (512ch)
+  - [-1, 1, SPPF, [1024, 5]]             # 11
+  - [-1, 2, C2PSA, [1024]]               # 12
+  - [-1, 1, CBAMAttention, [512]]        # 13 <<< CBAM backbone P5
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 14
+  - [[-1, 8], 1, Concat, [1]]                    # 15 cat backbone P4 (setelah CBAM)
+  - [-1, 2, C3k2, [512, False]]                  # 16
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 17
+  - [[-1, 5], 1, Concat, [1]]                    # 18 cat backbone P3 (setelah CBAM)
+  - [-1, 2, C3k2, [256, False]]                  # 19 (P3 out, 128ch)
+  - [-1, 1, CBAMAttention, [128]]                # 20 <<< CBAM neck P3
+  - [-1, 1, Conv, [256, 3, 2]]                   # 21
+  - [[-1, 16], 1, Concat, [1]]                   # 22 cat head P4
+  - [-1, 2, C3k2, [512, False]]                  # 23 (P4 out, 256ch)
+  - [-1, 1, CBAMAttention, [256]]                # 24 <<< CBAM neck P4
+  - [-1, 1, Conv, [512, 3, 2]]                   # 25
+  - [[-1, 13], 1, Concat, [1]]                   # 26 cat head P5
+  - [-1, 2, C3k2, [1024, True]]                  # 27 (P5 out, 512ch)
+  - [-1, 1, CBAMAttention, [512]]                # 28 <<< CBAM neck P5
+  - [[20, 24, 28], 1, Detect, [nc]]              # 29 Detect(P3, P4, P5)

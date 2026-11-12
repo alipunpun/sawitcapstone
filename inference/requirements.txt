@@ -5,3 +5,4 @@ opencv-python>=4.10.0
 numpy>=2.0.0
 Pillow>=11.0.0
 ultralytics>=8.3.0
+torch>=2.0.0

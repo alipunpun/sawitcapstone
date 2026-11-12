@@ -6,6 +6,9 @@ Skrip pengujian otomatis end-to-end untuk Step 5:
 2. Memverifikasi transmisi ke Python inference dan broadcast ke /ws/detection.
 3. Mengukur metrik performa: FPS pengiriman, FPS inferensi, latency (ms), bandwidth.
 4. Melakukan analisis Domain Gap (perbandingan deteksi ground-level vs rekaman sudut UAV).
+
+Model   : bestyolo11s_cbam_wiou.pt  (YOLO11s + CBAM Attention + Wise-IoU v3)
+Kelas   : 5 kelas kematangan TBS – Abnormal, Flower, Ripe, Underripe, Unripe
 """
 
 from __future__ import annotations
@@ -197,21 +200,31 @@ async def run_end_to_end_uav_test(test_duration_sec: int = 6, target_fps: int = 
 def analyze_domain_gap() -> dict:
     """
     Evaluasi Domain Gap:
-    Bandingkan performa deteksi model YOLOv11n (yang dilatih pada ground-level)
+    Bandingkan performa deteksi model YOLO11s-CBAM-WIoU (5 kelas kematangan TBS)
     terhadap citra ground-level vs frame bersudut pandang UAV.
+    Kelas: Abnormal, Flower, Ripe, Underripe, Unripe.
     """
     print("\n" + "=" * 65)
     print("  ANALISIS DOMAIN GAP (Ground-Level vs Aerial UAV)")
     print("=" * 65)
 
+    # Terapkan patch CBAM & WIoU sebelum memuat model kustom
+    sys.path.insert(0, str(SCRIPT_DIR))
+    from custom_yolo import apply_patches
+    apply_patches(verbose=False)
     from ultralytics import YOLO
 
-    model_path = SCRIPT_DIR / "oil_palm_fruit_yolov11n.pt"
+    # Coba model CBAM baru terlebih dahulu, fallback ke model lama jika tidak ada
+    model_path = SCRIPT_DIR.parent / "model" / "bestyolo11s_cbam_wiou.pt"
     if not model_path.exists():
-        print(f"[WARN] Model {model_path.name} tidak ditemukan.")
+        model_path = SCRIPT_DIR / "oil_palm_fruit_yolov11n.pt"
+    if not model_path.exists():
+        print(f"[WARN] Model tidak ditemukan di {model_path}.")
         return {}
 
+    print(f"  Model: {model_path.name}")
     model = YOLO(str(model_path))
+    print(f"  Kelas terdeteksi: {list(model.names.values())}")
 
     # A. Evaluasi pada ground-level sample images
     ground_results = []
@@ -282,13 +295,15 @@ def analyze_domain_gap() -> dict:
 
     print("\n  Temuan Analisis Domain Gap:")
     print("  1. Perspektif Sudut Pandang (Viewpoint Gap):")
-    print("     Model dilatih pada sudut horizontal/ground-level. Pada sudut UAV (oblique/top-down),")
+    print("     Model CBAM dilatih dengan 5 kelas kematangan TBS. Pada sudut UAV (oblique/top-down),")
     print("     pola tandan buah sawit (TBS) sebagian tertutup pelepah pohon (occlusion by fronds).")
     print("  2. Skala & Resolusi Objek (Scale Gap):")
     print("     Tandan buah tampak lebih kecil pada ketinggian terbang UAV (15-20 meter)")
     print("     dibandingkan foto close-up jarak dekat.")
-    print("  3. Rekomendasi Solusi:")
-    print("     Diperlukan fine-tuning lanjutan dengan dataset citra drone/aerial kelapa sawit")
+    print("  3. Kelas Kematangan yang Didukung Model Baru:")
+    print(f"     {list(model.names.values())}")
+    print("  4. Rekomendasi Solusi:")
+    print("     Fine-tuning lanjutan dengan dataset citra drone/aerial kelapa sawit")
     print("     atau penyesuaian threshold confidence (conf=0.15-0.20) untuk aerial monitoring.")
     print("=" * 65)
 

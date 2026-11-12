@@ -2,7 +2,11 @@
 Inference Service – Oil Palm Detection (UAV Live Stream)
 =========================================================
 Menerima frame JPEG base64 via WebSocket dari Elysia backend,
-menjalankan model deteksi objek YOLOv11n, lalu mengembalikan bounding box + label.
+menjalankan model deteksi objek YOLO11s-CBAM-WIoU, lalu mengembalikan bounding box + label.
+
+Model   : bestyolo11s_cbam_wiou.pt  (YOLO11s + CBAM Attention + Wise-IoU v3)
+Kelas   : 5 kelas kematangan TBS – Abnormal, Flower, Ripe, Underripe, Unripe
+Arsitektur kustom didefinisikan di custom_yolo.py (CBAM + WIoU patch).
 
 Endpoint WebSocket : ws://localhost:8000/ws/inference (dan alias /ws/infer)
 Endpoint REST      : GET /health
@@ -24,6 +28,14 @@ import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+
+# ---------------------------------------------------------------------------
+# Patch CBAM & WIoU – WAJIB dipanggil sebelum mengimpor YOLO agar layer
+# CBAMAttention dan WIoUBboxLoss dikenali oleh Ultralytics.
+# ---------------------------------------------------------------------------
+from custom_yolo import apply_patches
+apply_patches(verbose=True)
+
 from ultralytics import YOLO
 
 # ---------------------------------------------------------------------------
@@ -66,7 +78,7 @@ def get_current_fps() -> float:
 # ---------------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------------
-app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.3.0")
+app = FastAPI(title="UAV Oil-Palm Inference Service", version="0.4.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -78,8 +90,18 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Model loader
 # ---------------------------------------------------------------------------
-MODEL_PATH = Path(__file__).parent / "oil_palm_fruit_yolov11n.pt"
+# Model baru: YOLO11s + CBAM Attention + Wise-IoU v3, 5 kelas kematangan TBS.
+# File .pt disimpan di folder model/ (satu level di atas inference/).
+MODEL_PATH = Path(__file__).parent.parent / "model" / "bestyolo11s_cbam_wiou.pt"
+
+# Fallback ke path lama (dalam folder inference/) jika model baru tidak ada.
+if not MODEL_PATH.exists():
+    MODEL_PATH = Path(__file__).parent / "oil_palm_fruit_yolov11n.pt"
+
 MODEL: Any = None
+
+# Label 5 kelas model CBAM (urutan sesuai nc: 5 pada yolo11s-cbam.yaml)
+CLASS_NAMES = ["Abnormal", "Flower", "Ripe", "Underripe", "Unripe"]
 
 
 def load_model() -> Any:
@@ -119,9 +141,9 @@ def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list
         return detections
 
     # --- MOCK fallback jika model gagal diload ---
+    # 5 kelas sesuai model CBAM: Abnormal, Flower, Ripe, Underripe, Unripe
     h, w = frame_bgr.shape[:2]
     n = random.randint(0, 3)
-    mock_labels = ["Betina", "Black fruits", "Jantan", "Red fruits"]
     result = []
     for _ in range(n):
         bw = random.randint(40, 120)
@@ -129,7 +151,7 @@ def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list
         bx = random.randint(0, max(1, w - bw))
         by = random.randint(0, max(1, h - bh))
         result.append({
-            "label": random.choice(mock_labels),
+            "label": random.choice(CLASS_NAMES),
             "confidence": round(random.uniform(0.55, 0.99), 3),
             "x": bx,
             "y": by,
@@ -165,8 +187,9 @@ async def health() -> dict:
     return {
         "status": "ok",
         "service": "inference",
+        "model": MODEL_PATH.name if MODEL_PATH.exists() else "none",
         "model_loaded": MODEL is not None,
-        "classes": MODEL.names if MODEL is not None else {},
+        "classes": MODEL.names if MODEL is not None else {i: c for i, c in enumerate(CLASS_NAMES)},
         "frames_processed": TOTAL_FRAMES,
         "fps": get_current_fps(),
         "timestamp": time.time(),
@@ -179,8 +202,9 @@ async def stats() -> dict:
     return {
         "status": "ok",
         "service": "inference",
+        "model": MODEL_PATH.name if MODEL_PATH.exists() else "none",
         "model_loaded": MODEL is not None,
-        "classes": MODEL.names if MODEL is not None else {},
+        "classes": MODEL.names if MODEL is not None else {i: c for i, c in enumerate(CLASS_NAMES)},
         "frames_processed": TOTAL_FRAMES,
         "avg_latency_ms": avg_latency,
         "fps": get_current_fps(),
