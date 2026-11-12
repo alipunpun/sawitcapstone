@@ -1,9 +1,10 @@
 /**
- * DetectionHistory – tabel riwayat deteksi objek terbaru
+ * DetectionHistory – Tabel Riwayat Telemetri & Deteksi Tandan Buah Sawit
  */
 
 import type { DetectionRecord } from "../hooks/useUAVStream";
 import { getLabelColor } from "../utils/labels";
+import { FilmIcon, Trash2Icon, ActivityIcon } from "./icons";
 import styles from "./DetectionHistory.module.css";
 
 interface Props {
@@ -24,23 +25,32 @@ function truncateFrameId(id: string): string {
 
 export function DetectionHistory({ history, onClear }: Props) {
   return (
-    <div className={styles.container}>
+    <div className={styles.container} role="region" aria-label="Riwayat Deteksi Drone">
       <div className={styles.header}>
         <div className={styles.headerTitleGroup}>
-          <h3 className={styles.title}>Riwayat Deteksi Terbaru</h3>
+          <FilmIcon size={20} style={{ color: "#16a34a" }} aria-hidden="true" />
+          <h3 className={styles.title}>Riwayat Telemetri & Deteksi Misi Drone</h3>
           <span className={styles.badge}>{history.length} entri</span>
         </div>
         {history.length > 0 && onClear && (
-          <button className={styles.clearBtn} onClick={onClear} title="Bersihkan riwayat">
-            Bersihkan
+          <button
+            className={styles.clearBtn}
+            onClick={onClear}
+            type="button"
+            title="Bersihkan riwayat deteksi"
+          >
+            <Trash2Icon size={14} aria-hidden="true" />
+            <span>Bersihkan Log</span>
           </button>
         )}
       </div>
 
       {history.length === 0 ? (
         <div className={styles.empty}>
-          <span>📊</span>
-          <p>Belum ada data riwayat deteksi. Riwayat akan muncul otomatis saat stream aktif.</p>
+          <div className={styles.emptyIcon}>
+            <ActivityIcon size={26} />
+          </div>
+          <p>Belum ada data riwayat deteksi. Riwayat akan otomatis tercatat saat stream kamera drone aktif.</p>
         </div>
       ) : (
         <div className={styles.tableWrapper}>
@@ -49,10 +59,10 @@ export function DetectionHistory({ history, onClear }: Props) {
               <tr>
                 <th>Waktu</th>
                 <th>Frame ID</th>
-                <th>Objek</th>
-                <th>Kelas Terdeteksi</th>
+                <th>Jumlah Objek</th>
+                <th>Klasifikasi Tandan Teridentifikasi</th>
                 <th>Latensi</th>
-                <th>FPS</th>
+                <th>Throughput</th>
               </tr>
             </thead>
             <tbody>
@@ -81,7 +91,7 @@ export function DetectionHistory({ history, onClear }: Props) {
                     </td>
                     <td>
                       {classes.length === 0 ? (
-                        <span className={styles.noneText}>Nihil</span>
+                        <span className={styles.noneText}>Nihil (Tidak ada tandan)</span>
                       ) : (
                         <div className={styles.tagGroup}>
                           {classes.map(([label, count]) => (
@@ -90,7 +100,7 @@ export function DetectionHistory({ history, onClear }: Props) {
                               className={styles.classTag}
                               style={{
                                 borderColor: getLabelColor(label),
-                                color: "#f8fafc",
+                                color: "#0f172a",
                               }}
                             >
                               <span
@@ -107,7 +117,7 @@ export function DetectionHistory({ history, onClear }: Props) {
                       {rec.latency_ms > 0 ? `${rec.latency_ms.toFixed(1)} ms` : "-"}
                     </td>
                     <td className={styles.metricCell}>
-                      {rec.fps > 0 ? rec.fps.toFixed(1) : "-"}
+                      {rec.fps > 0 ? `${rec.fps.toFixed(1)} FPS` : "-"}
                     </td>
                   </tr>
                 );

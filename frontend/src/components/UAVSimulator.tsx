@@ -1,14 +1,9 @@
 /**
- * UAVSimulator
- *
- * Komponen opsional untuk keperluan testing lokal:
- * Mengakses webcam/kamera laptop, mengirim frame ke backend via /ws/stream
- * dengan rate yang bisa dikonfigurasi.
- *
- * Catatan: Di produksi, UAV yang mengirim frame langsung.
+ * UAVSimulator – Testing Tool Pengiriman Frame Webcam ke Backend
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CameraIcon, PlayIcon, SquareIcon } from "./icons";
 import styles from "./UAVSimulator.module.css";
 
 const STREAM_WS_URL = import.meta.env.VITE_STREAM_WS_URL ?? "ws://localhost:3000/ws/stream";
@@ -76,7 +71,7 @@ export function UAVSimulator() {
       setActive(true);
     } catch (err) {
       console.error("Gagal mengakses kamera:", err);
-      alert("Tidak bisa mengakses kamera. Pastikan izin diberikan.");
+      alert("Tidak bisa mengakses kamera. Pastikan izin kamera diberikan di browser.");
     }
   }, [connectWs]);
 
@@ -91,7 +86,7 @@ export function UAVSimulator() {
     setFrameCounter(0);
   }, []);
 
-  // Kirim frame sesuai fps
+  // Kirim frame sesuai interval FPS
   useEffect(() => {
     if (!active) return;
     if (intervalRef.current) clearInterval(intervalRef.current);
@@ -101,42 +96,80 @@ export function UAVSimulator() {
     };
   }, [active, fps, sendFrame]);
 
+  // Cleanup saat unmount
+  useEffect(() => {
+    return () => {
+      stopStream();
+    };
+  }, [stopStream]);
+
   return (
-    <div className={styles.container}>
-      <h4 className={styles.heading}>📷 Simulator UAV (Webcam)</h4>
-      <video ref={videoRef} className={styles.video} muted playsInline />
+    <div className={styles.container} role="region" aria-label="UAV Video Camera Simulator">
+      <div className={styles.header}>
+        <div className={styles.headingGroup}>
+          <CameraIcon size={16} style={{ color: "#38bdf8" }} aria-hidden="true" />
+          <h4 className={styles.heading}>UAV Video Simulator</h4>
+        </div>
+      </div>
+
+      <div className={styles.videoWrapper}>
+        {active ? (
+          <video ref={videoRef} className={styles.video} muted playsInline autoPlay />
+        ) : (
+          <div className={styles.inactiveVideo}>
+            <CameraIcon size={24} />
+            <span>Kamera Simulator Nonaktif</span>
+          </div>
+        )}
+      </div>
+
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
       <div className={styles.controls}>
         {!active ? (
-          <button className={styles.btnGreen} onClick={startStream}>
-            Mulai Stream
+          <button className={`${styles.btnAction} ${styles.btnStart}`} onClick={startStream}>
+            <PlayIcon size={14} />
+            Mulai Stream Webcam
           </button>
         ) : (
-          <button className={styles.btnRed} onClick={stopStream}>
-            Stop Stream
+          <button className={`${styles.btnAction} ${styles.btnStop}`} onClick={stopStream}>
+            <SquareIcon size={14} />
+            Hentikan Stream
           </button>
         )}
 
-        <label className={styles.fpsLabel}>
-          FPS:
+        <div className={styles.fpsControl}>
+          <div className={styles.fpsLabel}>
+            <span>Tingkat Frame (FPS):</span>
+            <span className={styles.fpsValue}>{fps} FPS</span>
+          </div>
           <input
             type="range"
-            min={1}
-            max={30}
+            min="1"
+            max="30"
             value={fps}
             onChange={(e) => setFps(Number(e.target.value))}
             className={styles.slider}
+            aria-label="Frame rate slider"
           />
-          <span>{fps}</span>
-        </label>
+        </div>
 
-        <div className={styles.info}>
-          <span>WS: <strong className={wsStatus === "connected" ? styles.green : styles.red}>{wsStatus}</strong></span>
-          <span>Frames terkirim: <strong>{frameCounter}</strong></span>
+        <div className={styles.infoBar}>
+          <div className={styles.infoItem}>
+            Status:{" "}
+            <span
+              className={
+                wsStatus === "connected" ? styles.statusConnected : styles.statusDisconnected
+              }
+            >
+              {wsStatus}
+            </span>
+          </div>
+          <div className={styles.infoItem}>
+            Terkirim: <strong>{frameCounter}</strong>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

@@ -1,82 +1,159 @@
 .container {
-  background: #1e293b;
-  border-radius: 8px;
-  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 10px;
+}
+
+.headingGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .heading {
   margin: 0;
   font-size: 0.9rem;
-  color: #94a3b8;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--green-deep);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.videoWrapper {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #0f172a;
+  border: 1px solid var(--border-subtle);
 }
 
 .video {
   width: 100%;
-  border-radius: 6px;
-  background: #000;
-  aspect-ratio: 16/9;
+  aspect-ratio: 16 / 9;
   object-fit: cover;
+  display: block;
+}
+
+.inactiveVideo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  gap: 8px;
+  border: 1px dashed var(--border-subtle);
 }
 
 .controls {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.btnAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   gap: 8px;
-}
-
-.btnGreen {
-  padding: 8px 16px;
-  border-radius: 6px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
   border: none;
-  background: #16a34a;
-  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btnGreen:hover { background: #15803d; }
+.btnStart {
+  background: var(--green-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(21, 128, 61, 0.25);
+}
 
-.btnRed {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: none;
+.btnStart:hover {
+  background: var(--green-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btnStop {
   background: #dc2626;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 600;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
 }
 
-.btnRed:hover { background: #b91c1c; }
+.btnStop:hover {
+  background: #b91c1c;
+  transform: translateY(-1px);
+}
+
+.fpsControl {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
 .fpsLabel {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  color: #94a3b8;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.fpsValue {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--green-primary);
 }
 
 .slider {
-  flex: 1;
-  accent-color: #3b82f6;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  accent-color: var(--green-primary);
+  cursor: pointer;
 }
 
-.info {
+.infoBar {
   display: flex;
-  gap: 16px;
-  font-size: 0.8rem;
-  color: #64748b;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.78rem;
+  color: var(--text-muted);
 }
 
-.info strong { color: #e2e8f0; }
+.infoItem strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
 
-.green { color: #22c55e; }
-.red { color: #ef4444; }
+.statusConnected {
+  color: #15803d;
+  font-weight: 700;
+}
 
+.statusDisconnected {
+  color: #dc2626;
+  font-weight: 700;
+}

@@ -31,6 +31,32 @@ async function runTests() {
     process.exit(1);
   }
 
+  // 2b. Test GET /api/session/summary (cek kontrak 5 kelas CBAM & zero-NaN guard)
+  let initialSummary: any;
+  try {
+    const resSummary = await fetch("http://localhost:3000/api/session/summary");
+    initialSummary = await resSummary.json();
+    console.log("✅ 2b. GET /api/session/summary (awal):", initialSummary);
+
+    const expectedClasses = ["Ripe", "Underripe", "Unripe", "Abnormal", "Flower"];
+    for (const cls of expectedClasses) {
+      if (typeof initialSummary.class_counts?.[cls] !== "number") {
+        throw new Error(`class_counts.${cls} tidak ditemukan atau bukan number!`);
+      }
+    }
+    if (
+      typeof initialSummary.session_start !== "string" ||
+      typeof initialSummary.total_frames !== "number" ||
+      typeof initialSummary.total_detections !== "number" ||
+      !Number.isFinite(initialSummary.harvest_readiness_index)
+    ) {
+      throw new Error("Format response /api/session/summary tidak valid atau mengandung NaN!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal test GET /api/session/summary awal:", err);
+    process.exit(1);
+  }
+
   // 3. Test WebSocket /ws/detection
   let welcomeReceived = false;
   let pongReceived = false;
@@ -82,12 +108,28 @@ async function runTests() {
           frame_id: "test-uav-frame-001",
           detections: [
             {
-              label: "oil_palm",
+              label: "Ripe",
               confidence: 0.94,
               x: 150,
               y: 80,
               w: 100,
               h: 100,
+            },
+            {
+              label: "Underripe",
+              confidence: 0.87,
+              x: 280,
+              y: 120,
+              w: 95,
+              h: 95,
+            },
+            {
+              label: "Flower",
+              confidence: 0.81,
+              x: 410,
+              y: 210,
+              w: 70,
+              h: 70,
             },
           ],
           latency_ms: 15.2,
@@ -129,6 +171,38 @@ async function runTests() {
     }
   } catch (err) {
     console.error("❌ Gagal verifikasi /api/stats:", err);
+    process.exit(1);
+  }
+
+  // 7. Test GET /api/session/summary (setelah update 5 kelas CBAM)
+  try {
+    const resSummary = await fetch("http://localhost:3000/api/session/summary");
+    const jsonSummary = await resSummary.json();
+    console.log("✅ 7. GET /api/session/summary (setelah update):", jsonSummary);
+
+    if (jsonSummary.total_frames < initialSummary.total_frames + 1) {
+      throw new Error("total_frames di /api/session/summary tidak bertambah!");
+    }
+    if (jsonSummary.total_detections < initialSummary.total_detections + 3) {
+      throw new Error("total_detections di /api/session/summary tidak bertambah sesuai payload!");
+    }
+    if (
+      jsonSummary.class_counts.Ripe !== initialSummary.class_counts.Ripe + 1 ||
+      jsonSummary.class_counts.Underripe !== initialSummary.class_counts.Underripe + 1 ||
+      jsonSummary.class_counts.Flower !== initialSummary.class_counts.Flower + 1
+    ) {
+      throw new Error("Agregasi class_counts CBAM tidak sesuai!");
+    }
+    if (
+      typeof jsonSummary.harvest_readiness_index !== "number" ||
+      !Number.isFinite(jsonSummary.harvest_readiness_index) ||
+      jsonSummary.harvest_readiness_index < 0 ||
+      jsonSummary.harvest_readiness_index > 100
+    ) {
+      throw new Error("harvest_readiness_index di luar rentang valid 0..100!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi /api/session/summary setelah update:", err);
     process.exit(1);
   }
 

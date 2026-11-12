@@ -17,6 +17,7 @@
  *   GET /api/health            – Status API & koneksi ke Python inference
  *   GET /api/detection/latest  – Mengambil data deteksi terbaru
  *   GET /api/stats             – Metrik performa dan statistik frame
+ *   GET /api/session/summary   – Ringkasan sesi stakeholder & Harvest Readiness Index
  */
 
 import { Elysia, t } from "elysia";
@@ -47,6 +48,16 @@ export interface DetectionPayload {
 const INFERENCE_WS_URL = process.env.INFERENCE_WS_URL ?? "ws://localhost:8000/ws/inference";
 const BACKEND_PORT = Number(process.env.PORT ?? 3000);
 
+export const CBAM_CLASSES = [
+  "Ripe",
+  "Underripe",
+  "Unripe",
+  "Abnormal",
+  "Flower",
+] as const;
+
+export type CBAMClass = (typeof CBAM_CLASSES)[number];
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -55,6 +66,37 @@ const viewerSockets = new Set<ReturnType<typeof Elysia.prototype.ws>["data"] ext
 let frameCount = 0;
 let detectionCount = 0;
 let lastFrameTimestamp = 0;
+
+// State agregasi sesi untuk Dashboard Stakeholder (Issue #14)
+const sessionStart = new Date().toISOString();
+let sessionFrames = 0;
+let sessionDetections = 0;
+const sessionClassCounts: Record<CBAMClass, number> = {
+  Ripe: 0,
+  Underripe: 0,
+  Unripe: 0,
+  Abnormal: 0,
+  Flower: 0,
+};
+
+function recordSessionDetections(detections: DetectionItem[]) {
+  sessionDetections += detections.length;
+  for (const det of detections) {
+    if (det.label in sessionClassCounts) {
+      sessionClassCounts[det.label as CBAMClass] += 1;
+    }
+  }
+}
+
+export function calculateHarvestReadinessIndex(
+  counts: Record<CBAMClass, number>,
+): number {
+  const fruitTotal =
+    counts.Ripe + counts.Underripe + counts.Unripe + counts.Abnormal;
+  if (fruitTotal <= 0) return 0;
+  const hri = (counts.Ripe / fruitTotal) * 100;
+  return Number(hri.toFixed(2));
+}
 
 // Menyimpan hasil deteksi terakhir untuk endpoint GET /api/detection/latest
 let latestDetection: DetectionPayload | null = null;
@@ -94,7 +136,9 @@ function connectToInference() {
           return;
         }
 
-        detectionCount += data.detections?.length ?? 0;
+        const incomingDetections = data.detections ?? [];
+        detectionCount += incomingDetections.length;
+        recordSessionDetections(incomingDetections);
 
         // Simpan sebagai deteksi terbaru
         latestDetection = {
@@ -189,6 +233,15 @@ const app = new Elysia()
     last_frame_ms: lastFrameTimestamp,
   }))
 
+  // --- Ringkasan Sesi & Harvest Readiness Index ---
+  .get("/api/session/summary", () => ({
+    session_start: sessionStart,
+    total_frames: sessionFrames,
+    total_detections: sessionDetections,
+    class_counts: { ...sessionClassCounts },
+    harvest_readiness_index: calculateHarvestReadinessIndex(sessionClassCounts),
+  }))
+
   // -----------------------------------------------------------------------
   // WS /ws/stream  – sumber video (UAV simulator / browser MediaStream)
   // Mengirim: { type: "frame", data: "<base64 JPEG>", frame_id?: string }
@@ -207,6 +260,7 @@ const app = new Elysia()
       if (message.type !== "frame" || !message.data) return;
 
       frameCount++;
+      sessionFrames++;
       lastFrameTimestamp = Date.now();
 
       const frameId = message.frame_id ?? `f-${frameCount}-${Date.now()}`;
@@ -296,7 +350,9 @@ const app = new Elysia()
         }
 
         if (payload.detections && Array.isArray(payload.detections)) {
+          sessionFrames++;
           detectionCount += payload.detections.length;
+          recordSessionDetections(payload.detections);
           latestDetection = {
             frame_id: payload.frame_id ?? `inbound-${Date.now()}`,
             detections: payload.detections,

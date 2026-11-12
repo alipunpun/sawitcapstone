@@ -1,104 +1,198 @@
 .panel {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 10px;
-  padding: 16px;
-  color: #e2e8f0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  gap: 16px;
+  box-shadow: var(--shadow-card);
 }
 
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 12px;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
   margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--green-deep);
+  letter-spacing: -0.01em;
 }
 
 .badge {
-  font-size: 0.75rem;
-  font-weight: 600;
-  background: #0f172a;
-  border: 1px solid #334155;
-  color: #38bdf8;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
   border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
 }
 
+/* Quick Agronomy Overview */
+.agronomyGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.agronomyCard {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.agronomyCard.ripe {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.agronomyCard.unripe {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.agronomyLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.ripe .agronomyLabel {
+  color: #991b1b;
+}
+
+.unripe .agronomyLabel {
+  color: #166534;
+}
+
+.agronomyCount {
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.ripe .agronomyCount {
+  color: #dc2626;
+}
+
+.unripe .agronomyCount {
+  color: #15803d;
+}
+
+/* Class Distribution Tags */
 .summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #334155;
+  gap: 8px;
 }
 
 .summaryTag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
-  background: #0f172a;
-  border: 1px solid #334155;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
 .summaryDot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
+.summaryTag strong {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* Empty State */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 12px;
+  gap: 12px;
+  padding: 36px 16px;
   text-align: center;
-  color: #64748b;
-  font-size: 0.82rem;
+  color: var(--text-muted);
+  background: #fbfdfc;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-subtle);
 }
 
 .emptyIcon {
-  font-size: 1.5rem;
-  margin-bottom: 6px;
-  opacity: 0.6;
+  color: #16a34a;
+  background: #f0fdf4;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #bbf7d0;
 }
 
-.empty p {
-  margin: 0;
+.emptyText {
+  font-size: 0.82rem;
+  max-width: 240px;
+  line-height: 1.5;
 }
 
+/* Active Deteksi List */
 .list {
   list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 280px;
+  gap: 8px;
+  max-height: 340px;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .item {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  background: #0f172a;
+  gap: 6px;
   padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #334155;
+  background: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.15s ease;
+}
+
+.item:hover {
+  border-color: #22c55e;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.1);
+  transform: translateX(2px);
 }
 
 .itemTop {
@@ -114,47 +208,48 @@
 }
 
 .dot {
-  flex-shrink: 0;
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .label {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: #f1f5f9;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .conf {
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 700;
-  color: #cbd5e1;
-  font-variant-numeric: tabular-nums;
+  color: var(--green-primary);
 }
 
 .barTrack {
   width: 100%;
-  height: 4px;
-  background: #1e293b;
-  border-radius: 2px;
+  height: 5px;
+  background: #f1f5f9;
+  border-radius: 9999px;
   overflow: hidden;
 }
 
 .barFill {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 9999px;
   transition: width 0.2s ease;
 }
 
 .itemMeta {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 .box {
-  font-size: 0.7rem;
-  color: #64748b;
-  font-family: monospace;
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
 }
