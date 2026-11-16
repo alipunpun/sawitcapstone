@@ -56,26 +56,19 @@ interface UseUAVStreamReturn {
 // Hook
 // ---------------------------------------------------------------------------
 function getWebSocketUrl(): string {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
   if (typeof window === "undefined") {
     return "ws://localhost:3000/ws/detection";
   }
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-
-  // Jika diakses dari HP / perangkat LAN (bukan localhost), SELALU gunakan host & port browser (Vite proxy).
-  // Ini mencegah HP mencoba konek ke localhost (dirinya sendiri) atau port 3000 yang diblokir firewall.
-  if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    return `${protocol}//${window.location.host}/ws/detection`;
-  }
-
-  if (import.meta.env.VITE_WS_URL) {
-    return import.meta.env.VITE_WS_URL;
-  }
-
   if (window.location.host) {
     return `${protocol}//${window.location.host}/ws/detection`;
   }
   return `${protocol}//${window.location.hostname}:3000/ws/detection`;
 }
+
 const MAX_HISTORY = 50;
 
 export function useUAVStream(): UseUAVStreamReturn {

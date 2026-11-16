@@ -1,30 +1,215 @@
-.wrapper {
+.container {
   position: relative;
   width: 100%;
-  max-width: 900px;
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
-  background: #000;
+  box-shadow: var(--shadow-card);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  z-index: 5;
+}
+
+.streamInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.liveTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #dc2626;
+  animation: blink 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes blink {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+
+.feedTitle {
+  font-weight: 700;
+  color: var(--green-deep);
+  font-size: 0.9rem;
+}
+
+.detBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.viewport {
+  position: relative;
+  width: 100%;
+  background: #090e17;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 440px;
+  overflow: hidden;
 }
 
 .canvas {
   display: block;
-  width: 100%;
+  max-width: 100%;
   height: auto;
+  object-fit: contain;
 }
 
+/* Subtle Optical Viewport Corner Accents */
+.cornerTL, .cornerTR, .cornerBL, .cornerBR {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.cornerTL {
+  top: 10px;
+  left: 10px;
+  border-top: 2px solid #22c55e;
+  border-left: 2px solid #22c55e;
+}
+
+.cornerTR {
+  top: 10px;
+  right: 10px;
+  border-top: 2px solid #22c55e;
+  border-right: 2px solid #22c55e;
+}
+
+.cornerBL {
+  bottom: 10px;
+  left: 10px;
+  border-bottom: 2px solid #22c55e;
+  border-left: 2px solid #22c55e;
+}
+
+.cornerBR {
+  bottom: 10px;
+  right: 10px;
+  border-bottom: 2px solid #22c55e;
+  border-right: 2px solid #22c55e;
+}
+
+/* Placeholder State */
 .placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 440px;
+  background: radial-gradient(circle at center, #13221b 0%, #08100c 100%);
+  color: #e2efe7;
+  padding: 36px;
+  text-align: center;
+}
+
+.radarRing {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 2px dashed rgba(34, 197, 94, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  max-width: 900px;
-  aspect-ratio: 16 / 9;
-  background: #1a1a2e;
-  border-radius: 8px;
-  border: 2px dashed #334155;
-  color: #64748b;
-  font-size: 1.1rem;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
 }
 
+.radarRing::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  animation: radarRotate 4s linear infinite;
+}
+
+@keyframes radarRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.placeholderText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.placeholderTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.placeholderSub {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  max-width: 420px;
+  line-height: 1.5;
+}
+
+/* Bottom Telemetry Footer Strip */
+.bottomStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  background: #f8fafc;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.bottomMetrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bottomItem strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
