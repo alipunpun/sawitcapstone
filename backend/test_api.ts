@@ -206,6 +206,102 @@ async function runTests() {
     process.exit(1);
   }
 
+  // 8. Test Database SQLite: GET /api/session/active & GET /api/sessions (Step 9)
+  let activeSessionId = "";
+  try {
+    const resActive = await fetch("http://localhost:3000/api/session/active");
+    const jsonActive = await resActive.json();
+    console.log("✅ 8a. GET /api/session/active response:", jsonActive);
+
+    if (!jsonActive.success || !jsonActive.session?.id) {
+      throw new Error("Gagal mengambil sesi aktif dari database SQLite!");
+    }
+    activeSessionId = jsonActive.session.id;
+
+    const resSessions = await fetch("http://localhost:3000/api/sessions");
+    const jsonSessions = await resSessions.json();
+    console.log("✅ 8b. GET /api/sessions response (total sesi):", jsonSessions.count);
+    if (!jsonSessions.success || !Array.isArray(jsonSessions.sessions) || jsonSessions.count < 1) {
+      throw new Error("Daftar sessions dari SQLite kosong atau format tidak valid!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi database sesi SQLite:", err);
+    process.exit(1);
+  }
+
+  // 9. Test GET /api/session/:id/summary (Step 9)
+  try {
+    const resSessSummary = await fetch(`http://localhost:3000/api/session/${activeSessionId}/summary`);
+    const jsonSessSummary = await resSessSummary.json();
+    console.log("✅ 9. GET /api/session/:id/summary response:", jsonSessSummary);
+
+    if (!jsonSessSummary.success || jsonSessSummary.session.id !== activeSessionId) {
+      throw new Error("Rekapitulasi sesi spesifik dari database SQLite tidak sesuai!");
+    }
+    if (jsonSessSummary.detections_count < 3) {
+      throw new Error("Event deteksi pada sesi SQLite kurang dari yang dikirim!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi /api/session/:id/summary:", err);
+    process.exit(1);
+  }
+
+  // 10. Test GET /api/export/:id/csv (Step 9)
+  try {
+    const resCsv = await fetch(`http://localhost:3000/api/export/${activeSessionId}/csv`);
+    const csvText = await resCsv.text();
+    console.log("✅ 10. GET /api/export/:id/csv sample line 1-2:\n" + csvText.split("\n").slice(0, 3).join("\n"));
+
+    if (!csvText.includes("session_id") || !csvText.includes("Ripe")) {
+      throw new Error("Output export CSV tidak memuat header atau data kelas!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi export CSV:", err);
+    process.exit(1);
+  }
+
+  // 11. Test GET /api/export/:id/pdf (Step 9)
+  try {
+    const resPdf = await fetch(`http://localhost:3000/api/export/${activeSessionId}/pdf`);
+    const pdfHtml = await resPdf.text();
+    console.log("✅ 11. GET /api/export/:id/pdf content-type:", resPdf.headers.get("content-type"));
+
+    if (!pdfHtml.includes("Laporan Hasil Deteksi TBS Kelapa Sawit") || !pdfHtml.includes(activeSessionId)) {
+      throw new Error("Laporan export printable HTML/PDF tidak valid!");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi export PDF report:", err);
+    process.exit(1);
+  }
+
+  // 12. Test POST /api/session/start & POST /api/session/end (Step 9)
+  try {
+    const resStart = await fetch("http://localhost:3000/api/session/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uav_id: "UAV-TEST-02", lat: 0.9123, lon: 101.4567 }),
+    });
+    const jsonStart = await resStart.json();
+    console.log("✅ 12a. POST /api/session/start response:", jsonStart);
+    if (!jsonStart.success || jsonStart.session.uav_id !== "UAV-TEST-02") {
+      throw new Error("Gagal memulai sesi baru melalui POST /api/session/start");
+    }
+
+    const resEnd = await fetch("http://localhost:3000/api/session/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: jsonStart.session.id }),
+    });
+    const jsonEnd = await resEnd.json();
+    console.log("✅ 12b. POST /api/session/end response:", jsonEnd);
+    if (!jsonEnd.success || jsonEnd.session.status !== "completed") {
+      throw new Error("Gagal mengakhiri sesi melalui POST /api/session/end");
+    }
+  } catch (err) {
+    console.error("❌ Gagal verifikasi POST /api/session/start atau end:", err);
+    process.exit(1);
+  }
+
   viewerWs.close();
   console.log("\n🎉 SEMUA PENGUJIAN INTEGRASI BERHASIL (100% LULUS) 🎉");
   process.exit(0);

@@ -20,6 +20,12 @@
  */
 
 import { Elysia, t } from "elysia";
+import { sessionRoutes } from "./routes/session";
+import {
+  getOrCreateActiveSession,
+  recalculateSessionSummary,
+} from "./models/session";
+import { insertBatchDetections } from "./models/detection";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,6 +91,15 @@ function recordSessionDetections(detections: DetectionItem[]) {
     if (det.label in sessionClassCounts) {
       sessionClassCounts[det.label as CBAMClass] += 1;
     }
+  }
+
+  // Persistensi ke Database SQLite (Step 9)
+  try {
+    const active = getOrCreateActiveSession();
+    insertBatchDetections(active.id, detections);
+    recalculateSessionSummary(active.id);
+  } catch (err) {
+    console.error("[db] Gagal menyimpan batch deteksi ke SQLite:", err);
   }
 }
 
@@ -209,6 +224,9 @@ function broadcastToViewers(message: object) {
 // ---------------------------------------------------------------------------
 const app = new Elysia()
 
+  // Daftarkan route handler sesi SQLite & export (Step 9)
+  .use(sessionRoutes)
+
   // --- Root index ---
   .get("/", () => ({
     name: "UAV Oil Palm Detection API",
@@ -221,6 +239,12 @@ const app = new Elysia()
       stats: "/api/stats",
       latest_detection: "/api/detection/latest",
       session_summary: "/api/session/summary",
+      session_active: "GET /api/session/active",
+      session_start: "POST /api/session/start",
+      session_end: "POST /api/session/end",
+      sessions_list: "GET /api/sessions",
+      export_csv: "GET /api/export/:id/csv",
+      export_pdf: "GET /api/export/:id/pdf",
       ws_stream: "/ws/stream",
       ws_detection: "/ws/detection",
       ws_inference: "/ws/inference",
@@ -252,14 +276,18 @@ const app = new Elysia()
     last_frame_ms: lastFrameTimestamp,
   }))
 
-  // --- Ringkasan Sesi & Harvest Readiness Index (Step 8) ---
-  .get("/api/session/summary", () => ({
-    session_start: sessionStart,
-    total_frames: sessionFrames,
-    total_detections: sessionDetections,
-    class_counts: { ...sessionClassCounts },
-    harvest_readiness_index: calculateHarvestReadinessIndex(sessionClassCounts),
-  }))
+  // --- Ringkasan Sesi & Harvest Readiness Index (Step 8 & 9) ---
+  .get("/api/session/summary", () => {
+    const active = getOrCreateActiveSession();
+    return {
+      session_id: active.id,
+      session_start: active.started_at || sessionStart,
+      total_frames: sessionFrames,
+      total_detections: sessionDetections,
+      class_counts: { ...sessionClassCounts },
+      harvest_readiness_index: calculateHarvestReadinessIndex(sessionClassCounts),
+    };
+  })
 
   // -----------------------------------------------------------------------
   // WS /ws/stream  – sumber video (UAV simulator / browser MediaStream)
