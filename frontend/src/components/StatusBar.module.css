@@ -1,47 +1,146 @@
 .bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
-  padding: 10px 16px;
-  background: #0f172a;
-  border-radius: 8px;
+  padding: 10px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   flex-wrap: wrap;
-  font-size: 0.85rem;
 }
 
-.status {
+.statusGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
   font-weight: 600;
-  flex-shrink: 0;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
 }
 
-.connected { color: #22c55e; }
-.connecting { color: #f59e0b; }
-.disconnected { color: #ef4444; }
-.error { color: #f43f5e; }
+.connected {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
+
+.connecting {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.disconnected {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.error {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: #fecdd3;
+}
+
+/* Radar pulse animation for live dot */
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  background: currentColor;
+}
+
+.connected .pulseDot::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0.8;
+  animation: radarPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes radarPing {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
 
 .metrics {
   display: flex;
-  gap: 16px;
-  color: #94a3b8;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
   flex-wrap: wrap;
 }
 
-.metrics strong {
-  color: #e2e8f0;
+.metricItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
 }
 
-.btn {
-  margin-left: auto;
-  padding: 4px 12px;
-  border-radius: 4px;
-  border: 1px solid #334155;
-  background: #1e293b;
-  color: #e2e8f0;
+.metricValue {
+  color: var(--green-deep);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricUnit {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.reconnectBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  border: 1px solid #16a34a;
+  color: #15803d;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.8rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
 }
 
-.btn:hover {
-  background: #334155;
+.reconnectBtn:hover {
+  background: #f0fdf4;
+  border-color: #15803d;
+  transform: translateY(-1px);
 }
 
+.reconnectBtn:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}

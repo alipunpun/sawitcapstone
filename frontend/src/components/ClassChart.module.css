@@ -1,0 +1,218 @@
+.chartWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green-primary);
+}
+
+.title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--green-deep);
+}
+
+.modeTabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  gap: 2px;
+}
+
+.tabBtn {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.activeTab {
+  background: #ffffff;
+  color: var(--green-deep);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Diagram Batang */
+.barArea {
+  padding-top: 8px;
+}
+
+.barGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  align-items: flex-end;
+  height: 140px;
+}
+
+.barCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  gap: 4px;
+}
+
+.barVal {
+  font-size: 0.75rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.barTrack {
+  flex: 1;
+  width: 100%;
+  max-width: 32px;
+  background: #f8fafc;
+  border-radius: var(--radius-xs);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.barFill {
+  width: 100%;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  transition: height 0.4s ease;
+}
+
+.barLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.barPct {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* Diagram Tren */
+.trendArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.emptyTrend {
+  padding: 30px 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: #fbfdfc;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+}
+
+.svgContainer {
+  position: relative;
+  width: 100%;
+  height: 140px;
+}
+
+.svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: #e2e8f0;
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+.pointDot {
+  cursor: pointer;
+  transition: r 0.15s ease;
+}
+
+.pointDot:hover {
+  r: 6;
+}
+
+.tooltip {
+  position: absolute;
+  transform: translate(-50%, -110%);
+  background: rgba(15, 23, 42, 0.9);
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 0.72rem;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip span {
+  font-family: var(--font-mono);
+  color: #86efac;
+}
+
+.tooltip small {
+  font-size: 0.65rem;
+  color: #cbd5e1;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.legendDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
