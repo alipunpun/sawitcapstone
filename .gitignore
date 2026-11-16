@@ -66,3 +66,10 @@ test_videos/
 
 # Codegraph
 .codegraph/
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+backend/data/*.db*
+

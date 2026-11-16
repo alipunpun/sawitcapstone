@@ -1,6 +1,6 @@
 /**
  * HarvestDashboard.tsx – Ringkasan Eksekutif Stakeholder & Harvest Readiness Index (HRI)
- * Step 8 Roadmap Capstone: Dashboard Stakeholder & Pembaruan 5 Kelas CBAM
+ * Step 8 & Step 9 Roadmap Capstone: Dashboard Stakeholder & Penyimpanan Database SQLite
  *
  * Mengagregasi 5 kelas kematangan TBS (Ripe, Underripe, Unripe, Abnormal, Flower)
  * dari GET /api/session/summary & feed real-time WebSocket, dilengkapi:
@@ -8,17 +8,27 @@
  *   8.2 Grafik Distribusi & Tren Waktu Nyata (ClassChart)
  *   8.3 Rekomendasi Panen Otomatis & Ambang Batas Terkonfigurasi (HarvestRecommendation)
  *   8.4 Export Laporan CSV & Cetak PDF
+ *   9.0 Kontrol Sesi Monitoring & Integrasi Database SQLite Persisten
  */
 
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { CBAM_CLASSES, getLabelInfo } from "../utils/labels";
 import type { DetectionRecord } from "../hooks/useUAVStream";
-import { ActivityIcon, ClockIcon, DownloadIcon, PrinterIcon, SproutIcon } from "./icons";
+import {
+  ActivityIcon,
+  ClockIcon,
+  DownloadIcon,
+  PlayIcon,
+  PrinterIcon,
+  SproutIcon,
+  SquareIcon,
+} from "./icons";
 import { ClassChart } from "./ClassChart";
 import { HarvestRecommendation } from "./HarvestRecommendation";
 import styles from "./HarvestDashboard.module.css";
 
 export interface SessionSummary {
+  session_id?: string;
   session_start: string;
   total_frames: number;
   total_detections: number;
@@ -34,6 +44,7 @@ interface Props {
 }
 
 const EMPTY_SUMMARY: SessionSummary = {
+  session_id: "",
   session_start: "",
   total_frames: 0,
   total_detections: 0,
@@ -93,6 +104,7 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
   const [summary, setSummary] = useState<SessionSummary>(EMPTY_SUMMARY);
   const [apiAvailable, setApiAvailable] = useState<boolean>(true);
   const [durationSec, setDurationSec] = useState<number>(0);
+  const [isStartingSession, setIsStartingSession] = useState<boolean>(false);
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -103,6 +115,7 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
       }
       const data = (await res.json()) as SessionSummary;
       setSummary({
+        session_id: data.session_id ?? "",
         session_start: data.session_start ?? "",
         total_frames: Number(data.total_frames ?? 0),
         total_detections: Number(data.total_detections ?? 0),
@@ -165,11 +178,54 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
       })
     : "—";
 
-  // Fitur 8.4: Export Laporan CSV
-  const handleExportCSV = () => {
+  // Fitur 9.0: Memulai Sesi Monitoring Baru di SQLite
+  const handleStartSession = async () => {
+    if (!window.confirm("Mulai sesi monitoring baru? Sesi berjalan akan diselesaikan dan disimpan.")) return;
+    setIsStartingSession(true);
+    try {
+      await fetch("/api/session/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uav_id: "UAV-01" }),
+      });
+      await fetchSummary();
+    } catch (err) {
+      console.error("Gagal memulai sesi baru:", err);
+    } finally {
+      setIsStartingSession(false);
+    }
+  };
+
+  // Fitur 9.0: Mengakhiri Sesi Monitoring di SQLite
+  const handleEndSession = async () => {
+    if (!window.confirm("Akhiri sesi monitoring saat ini dan simpan ringkasan ke database?")) return;
+    try {
+      await fetch("/api/session/end", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: summary.session_id }),
+      });
+      await fetchSummary();
+    } catch (err) {
+      console.error("Gagal mengakhiri sesi:", err);
+    }
+  };
+
+  // Fitur 9.0: Unduh CSV Database Lengkap
+  const handleDownloadDbCsv = () => {
+    if (!summary.session_id) {
+      handleExportClientCSV();
+      return;
+    }
+    window.open(`/api/export/${summary.session_id}/csv`, "_blank");
+  };
+
+  // Fitur 8.4: Export Laporan CSV Client-Side Fallback
+  const handleExportClientCSV = () => {
     const reportDate = new Date().toLocaleString("id-ID");
     const rows = [
       ["LAPORAN REKAPITULASI PEMANTAUAN TBS KELAPA SAWIT (UAV)"],
+      ["ID Sesi", summary.session_id || "-"],
       ["Waktu Laporan", reportDate],
       ["Waktu Mulai Sesi", summary.session_start || "-"],
       ["Durasi Monitoring", formatDuration(durationSec)],
@@ -199,15 +255,19 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
     const link = document.createElement("a");
     const dateStr = new Date().toISOString().slice(0, 10);
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `laporan_panen_sawit_${dateStr}.csv`);
+    link.setAttribute("download", `laporan_panen_sawit_${summary.session_id || dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Fitur 8.4: Export / Cetak Laporan PDF
+  // Fitur 8.4 & 9.0: Export / Cetak Laporan PDF
   const handlePrintPDF = () => {
-    window.print();
+    if (summary.session_id) {
+      window.open(`/api/export/${summary.session_id}/pdf`, "_blank");
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -224,13 +284,18 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
           <div>
             <h2 className={styles.title}>Dashboard Stakeholder & Kesiapan Panen</h2>
             <p className={styles.subtitle}>
-              Sistem Klasifikasi 5 Kelas YOLO11s-CBAM-WIoU · Ditujukan bagi Pekerja & Manajer Kebun
+              Sistem Klasifikasi 5 Kelas YOLO11s-CBAM-WIoU · Persisten SQLite Database (Step 9)
             </p>
           </div>
         </div>
 
         <div className={styles.headerRight}>
           <div className={styles.sessionMeta}>
+            {summary.session_id && (
+              <span className={styles.metaPill}>
+                <span>ID: <strong>{summary.session_id}</strong></span>
+              </span>
+            )}
             <span className={styles.metaPill}>
               <ActivityIcon size={13} aria-hidden="true" />
               <span>Sesi: {formattedSessionStart}</span>
@@ -251,11 +316,33 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
           </div>
 
           <div className={styles.actionButtonGroup}>
+            {/* Kontrol Sesi Monitoring (Step 9) */}
+            <button
+              type="button"
+              className={styles.sessionControlBtn}
+              onClick={handleStartSession}
+              disabled={isStartingSession}
+              title="Mulai sesi monitoring penerbangan UAV baru"
+            >
+              <PlayIcon size={13} aria-hidden="true" />
+              <span>Sesi Baru</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.sessionControlBtn} ${styles.endBtn}`}
+              onClick={handleEndSession}
+              title="Selesaikan sesi saat ini dan simpan rekapitulasi ke SQLite"
+            >
+              <SquareIcon size={13} aria-hidden="true" />
+              <span>Selesaikan</span>
+            </button>
+
+            {/* Export CSV & Laporan PDF (Step 8.4 & 9) */}
             <button
               type="button"
               className={styles.exportBtn}
-              onClick={handleExportCSV}
-              title="Unduh laporan ringkasan dalam format CSV"
+              onClick={handleDownloadDbCsv}
+              title="Unduh data deteksi mentah dalam format CSV dari database SQLite"
             >
               <DownloadIcon size={14} aria-hidden="true" />
               <span>Export CSV</span>
@@ -264,10 +351,10 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
               type="button"
               className={`${styles.exportBtn} ${styles.printBtn}`}
               onClick={handlePrintPDF}
-              title="Cetak atau simpan laporan sebagai dokumen PDF"
+              title="Buka laporan rekapitulasi resmi sesi untuk cetak / simpan ke PDF"
             >
               <PrinterIcon size={14} aria-hidden="true" />
-              <span>Cetak PDF</span>
+              <span>Laporan PDF</span>
             </button>
           </div>
         </div>
