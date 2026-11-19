@@ -32,7 +32,9 @@ export interface SessionSummary {
   session_start: string;
   total_frames: number;
   total_detections: number;
+  unique_detections?: number;
   class_counts: Record<string, number>;
+  unique_class_counts?: Record<string, number>;
   harvest_readiness_index: number;
 }
 
@@ -48,7 +50,15 @@ const EMPTY_SUMMARY: SessionSummary = {
   session_start: "",
   total_frames: 0,
   total_detections: 0,
+  unique_detections: 0,
   class_counts: {
+    Ripe: 0,
+    Underripe: 0,
+    Unripe: 0,
+    Abnormal: 0,
+    Flower: 0,
+  },
+  unique_class_counts: {
     Ripe: 0,
     Underripe: 0,
     Unripe: 0,
@@ -119,7 +129,9 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
         session_start: data.session_start ?? "",
         total_frames: Number(data.total_frames ?? 0),
         total_detections: Number(data.total_detections ?? 0),
+        unique_detections: Number(data.unique_detections ?? data.total_detections ?? 0),
         class_counts: data.class_counts ?? EMPTY_SUMMARY.class_counts,
+        unique_class_counts: data.unique_class_counts ?? data.class_counts ?? EMPTY_SUMMARY.unique_class_counts,
         harvest_readiness_index: Number.isFinite(data.harvest_readiness_index)
           ? data.harvest_readiness_index
           : 0,
@@ -230,7 +242,8 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
       ["Waktu Mulai Sesi", summary.session_start || "-"],
       ["Durasi Monitoring", formatDuration(durationSec)],
       ["Total Frame UAV", summary.total_frames.toString()],
-      ["Total TBS Terdeteksi", summary.total_detections.toString()],
+      ["Total TBS Unik (Deduplikasi)", (summary.unique_detections ?? summary.total_detections).toString()],
+      ["Total Deteksi Frame", summary.total_detections.toString()],
       ["Total Buah (Non-Bunga)", fruitTotal.toString()],
       ["Harvest Readiness Index (%)", hri.toFixed(2)],
       ["Status Kesiapan", status.label],
@@ -284,7 +297,7 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
           <div>
             <h2 className={styles.title}>Dashboard Stakeholder & Kesiapan Panen</h2>
             <p className={styles.subtitle}>
-              Sistem Klasifikasi 5 Kelas YOLO11s-CBAM-WIoU · Persisten SQLite Database (Step 9)
+              Sistem Klasifikasi 5 Kelas YOLO11s-CBAM-WIoU · Object Tracking & Deduplikasi (Step 10)
             </p>
           </div>
         </div>
@@ -307,8 +320,11 @@ export function HarvestDashboard({ liveDetectionCount, history = [] }: Props) {
             <span className={styles.metaPill}>
               Frame: <strong>{summary.total_frames.toLocaleString("id-ID")}</strong>
             </span>
-            <span className={styles.metaPill}>
-              Total TBS: <strong>{summary.total_detections.toLocaleString("id-ID")}</strong>
+            <span className={styles.metaPill} title="Total deteksi objek mentah pada seluruh frame kamera UAV">
+              Deteksi: <strong>{summary.total_detections.toLocaleString("id-ID")}</strong>
+            </span>
+            <span className={styles.metaPill} title="Tandan Buah Sawit unik setelah deduplikasi (Object Tracking)">
+              TBS Unik: <strong>{(summary.unique_detections ?? summary.total_detections).toLocaleString("id-ID")}</strong>
             </span>
             {!apiAvailable && (
               <span className={styles.offlineBadge}>API Offline</span>

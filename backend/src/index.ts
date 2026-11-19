@@ -37,6 +37,8 @@ export interface DetectionItem {
   y: number;
   w: number;
   h: number;
+  track_id?: string | null;
+  is_duplicate?: boolean | number;
 }
 
 export interface DetectionPayload {
@@ -73,11 +75,19 @@ let frameCount = 0;
 let detectionCount = 0;
 let lastFrameTimestamp = 0;
 
-// State agregasi sesi untuk Dashboard Stakeholder (Step 8)
+// State agregasi sesi untuk Dashboard Stakeholder (Step 8 & Step 10)
 const sessionStart = new Date().toISOString();
 let sessionFrames = 0;
 let sessionDetections = 0;
+let sessionUniqueDetections = 0;
 const sessionClassCounts: Record<CBAMClass, number> = {
+  Ripe: 0,
+  Underripe: 0,
+  Unripe: 0,
+  Abnormal: 0,
+  Flower: 0,
+};
+const sessionUniqueClassCounts: Record<CBAMClass, number> = {
   Ripe: 0,
   Underripe: 0,
   Unripe: 0,
@@ -91,9 +101,17 @@ function recordSessionDetections(detections: DetectionItem[]) {
     if (det.label in sessionClassCounts) {
       sessionClassCounts[det.label as CBAMClass] += 1;
     }
+    // Step 10: Deduplikasi statistik jika bukan duplikat
+    const isDup = Boolean(det.is_duplicate);
+    if (!isDup) {
+      sessionUniqueDetections += 1;
+      if (det.label in sessionUniqueClassCounts) {
+        sessionUniqueClassCounts[det.label as CBAMClass] += 1;
+      }
+    }
   }
 
-  // Persistensi ke Database SQLite (Step 9)
+  // Persistensi ke Database SQLite (Step 9 & Step 10)
   try {
     const active = getOrCreateActiveSession();
     insertBatchDetections(active.id, detections);
@@ -276,16 +294,21 @@ const app = new Elysia()
     last_frame_ms: lastFrameTimestamp,
   }))
 
-  // --- Ringkasan Sesi & Harvest Readiness Index (Step 8 & 9) ---
+  // --- Ringkasan Sesi & Harvest Readiness Index (Step 8, 9 & 10) ---
   .get("/api/session/summary", () => {
     const active = getOrCreateActiveSession();
+    const effectiveHriCounts =
+      sessionUniqueDetections > 0 ? sessionUniqueClassCounts : sessionClassCounts;
+
     return {
       session_id: active.id,
       session_start: active.started_at || sessionStart,
       total_frames: sessionFrames,
       total_detections: sessionDetections,
+      unique_detections: sessionUniqueDetections,
       class_counts: { ...sessionClassCounts },
-      harvest_readiness_index: calculateHarvestReadinessIndex(sessionClassCounts),
+      unique_class_counts: { ...sessionUniqueClassCounts },
+      harvest_readiness_index: calculateHarvestReadinessIndex(effectiveHriCounts),
     };
   })
 

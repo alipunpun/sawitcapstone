@@ -59,8 +59,10 @@ export function VideoStream({ frameDataUrl, detections, showOverlay = true }: Pr
           ctx.lineTo(det.x + det.w - bracketLen, det.y + det.h);
           ctx.stroke();
 
-          // Label text & pill
-          const label = `${det.label} ${(det.confidence * 100).toFixed(0)}%`;
+          // Label text & pill (menampilkan track_id untuk pelacakan objek Step 10)
+          const trackPrefix = det.track_id ? `${det.track_id} · ` : "";
+          const dupIndicator = det.is_duplicate ? " (dup)" : "";
+          const label = `${trackPrefix}${det.label} ${(det.confidence * 100).toFixed(0)}%${dupIndicator}`;
           ctx.font = "bold 13px 'Plus Jakarta Sans', sans-serif";
           const textMetrics = ctx.measureText(label);
           const textW = textMetrics.width + 14;
@@ -72,7 +74,7 @@ export function VideoStream({ frameDataUrl, detections, showOverlay = true }: Pr
           ctx.fillRect(det.x, pillY, textW, textH);
 
           // Pill border
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle = det.is_duplicate ? "#fef08a" : "#ffffff";
           ctx.lineWidth = 1;
           ctx.strokeRect(det.x, pillY, textW, textH);
 

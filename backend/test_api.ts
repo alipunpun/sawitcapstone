@@ -275,6 +275,7 @@ async function runTests() {
   }
 
   // 12. Test POST /api/session/start & POST /api/session/end (Step 9)
+  let testSessionId = "";
   try {
     const resStart = await fetch("http://localhost:3000/api/session/start", {
       method: "POST",
@@ -286,6 +287,7 @@ async function runTests() {
     if (!jsonStart.success || jsonStart.session.uav_id !== "UAV-TEST-02") {
       throw new Error("Gagal memulai sesi baru melalui POST /api/session/start");
     }
+    testSessionId = jsonStart.session.id;
 
     const resEnd = await fetch("http://localhost:3000/api/session/end", {
       method: "POST",
@@ -299,6 +301,102 @@ async function runTests() {
     }
   } catch (err) {
     console.error("❌ Gagal verifikasi POST /api/session/start atau end:", err);
+    process.exit(1);
+  }
+
+  // 13. Test Deduplikasi & Object Tracking (Step 10)
+  try {
+    // Mulai sesi baru untuk menguji deduplikasi
+    const resSess10 = await fetch("http://localhost:3000/api/session/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uav_id: "UAV-DEDUP-10" }),
+    });
+    const jsonSess10 = await resSess10.json();
+    const dedupSessionId = jsonSess10.session.id;
+    console.log("✅ 13a. Memulai sesi deduplikasi Step 10:", dedupSessionId);
+
+    // Ambil baseline summary
+    const resBase = await fetch("http://localhost:3000/api/session/summary");
+    const jsonBase = await resBase.json();
+    const baseTotal = jsonBase.total_detections;
+    const baseUnique = jsonBase.unique_detections ?? 0;
+
+    // Hubungkan WebSocket ke /ws/inference untuk mengirim 2 frame:
+    // Frame 1: TBS TRK-9901 baru (is_duplicate = false)
+    // Frame 2: TBS TRK-9901 duplikat (is_duplicate = true) + TRK-9902 baru (is_duplicate = false)
+    const dedupWs = new WebSocket("ws://localhost:3000/ws/inference");
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("Timeout WS inference test 13")), 6000);
+      dedupWs.onopen = () => {
+        // Kirim Frame 1 (1 objek baru)
+        dedupWs.send(JSON.stringify({
+          frame_id: "frame-dedup-1",
+          detections: [
+            { label: "Ripe", confidence: 0.95, x: 100, y: 100, w: 60, h: 60, track_id: "TRK-9901", is_duplicate: false },
+          ],
+        }));
+
+        // Kirim Frame 2 (1 duplikat + 1 baru)
+        setTimeout(() => {
+          dedupWs.send(JSON.stringify({
+            frame_id: "frame-dedup-2",
+            detections: [
+              { label: "Ripe", confidence: 0.93, x: 105, y: 102, w: 60, h: 60, track_id: "TRK-9901", is_duplicate: true },
+              { label: "Underripe", confidence: 0.88, x: 300, y: 200, w: 70, h: 70, track_id: "TRK-9902", is_duplicate: false },
+            ],
+          }));
+          setTimeout(() => {
+            clearTimeout(timeout);
+            dedupWs.close();
+            resolve();
+          }, 300);
+        }, 150);
+      };
+      dedupWs.onerror = (err) => {
+        clearTimeout(timeout);
+        reject(err);
+      };
+    });
+
+    // Verifikasi agregasi deduplikasi
+    const resDedupSummary = await fetch("http://localhost:3000/api/session/summary");
+    const jsonDedupSummary = await resDedupSummary.json();
+    console.log("✅ 13b. GET /api/session/summary setelah 2 frame pelacakan:", {
+      total_detections: jsonDedupSummary.total_detections,
+      unique_detections: jsonDedupSummary.unique_detections,
+    });
+
+    // Total deteksi harus bertambah 3 (1 di frame 1, 2 di frame 2)
+    if (jsonDedupSummary.total_detections !== baseTotal + 3) {
+      throw new Error(`Total deteksi (${jsonDedupSummary.total_detections}) tidak bertambah 3 dari base (${baseTotal})!`);
+    }
+
+    // Deteksi unik HANYA boleh bertambah 2 (TRK-9901 dan TRK-9902, bukan duplikat)
+    if (jsonDedupSummary.unique_detections !== baseUnique + 2) {
+      throw new Error(`Deteksi unik (${jsonDedupSummary.unique_detections}) tidak bertambah tepat 2 dari base (${baseUnique})!`);
+    }
+
+    // Verifikasi SQLite endpoint spesifik sesi
+    const resSqliteDedup = await fetch(`http://localhost:3000/api/session/${dedupSessionId}/summary`);
+    const jsonSqliteDedup = await resSqliteDedup.json();
+    console.log("✅ 13c. SQLite per-session deduplication summary:", {
+      session_id: dedupSessionId,
+      detections_count: jsonSqliteDedup.detections_count,
+      unique_detections_count: jsonSqliteDedup.unique_detections_count,
+      unique_tbs: jsonSqliteDedup.summary.unique_tbs,
+    });
+
+    if (jsonSqliteDedup.detections_count < 3 || jsonSqliteDedup.unique_detections_count < 2) {
+      throw new Error("Hasil deduplikasi per sesi di SQLite tidak sesuai dengan event!");
+    }
+    if (jsonSqliteDedup.summary.unique_tbs < 2) {
+      throw new Error("Field unique_tbs di session_summaries SQLite tidak sesuai!");
+    }
+
+    console.log("✅ 13d. Verifikasi Deduplikasi & Object Tracking Step 10 LULUS SEMPURNA!");
+  } catch (err) {
+    console.error("❌ Gagal verifikasi Step 10 Deduplikasi:", err);
     process.exit(1);
   }
 

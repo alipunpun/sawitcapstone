@@ -16,6 +16,7 @@ import {
 import {
   getDetectionCountBySession,
   getDetectionsBySession,
+  getUniqueDetectionCountBySession,
 } from "../models/detection";
 
 export const sessionRoutes = new Elysia({ prefix: "/api" })
@@ -132,12 +133,14 @@ export const sessionRoutes = new Elysia({ prefix: "/api" })
       // Hitung ulang dari detection_events untuk memastikan data up-to-date
       const summary = recalculateSessionSummary(session.id);
       const detectionsCount = getDetectionCountBySession(session.id);
+      const uniqueCount = getUniqueDetectionCountBySession(session.id);
 
       return {
         success: true,
         session,
         summary,
         detections_count: detectionsCount,
+        unique_detections_count: uniqueCount,
       };
     },
     {
@@ -266,7 +269,8 @@ export const sessionRoutes = new Elysia({ prefix: "/api" })
     <div class="hri-title">Harvest Readiness Index (HRI)</div>
     <div class="hri-val">${summary.harvest_readiness_pct.toFixed(1)}%</div>
     <p style="margin: 6px 0 0; font-size: 13px; color: #166534;">
-      Total Deteksi TBS: <strong>${summary.total_tbs}</strong> | Ripe: <strong>${summary.ripe_count}</strong> | Underripe: <strong>${summary.underripe_count}</strong> | Unripe: <strong>${summary.unripe_count}</strong> | Abnormal: <strong>${summary.abnormal_count}</strong> | Bunga: <strong>${summary.flower_count}</strong>
+      TBS Unik (Deduplikasi): <strong>${summary.unique_tbs}</strong> | Total Deteksi Frame: <strong>${summary.total_tbs}</strong><br>
+      Ripe: <strong>${summary.ripe_count}</strong> | Underripe: <strong>${summary.underripe_count}</strong> | Unripe: <strong>${summary.unripe_count}</strong> | Abnormal: <strong>${summary.abnormal_count}</strong> | Bunga: <strong>${summary.flower_count}</strong>
     </p>
   </div>
 
@@ -277,6 +281,7 @@ export const sessionRoutes = new Elysia({ prefix: "/api" })
         <th>No</th>
         <th>Waktu Deteksi</th>
         <th>Track ID</th>
+        <th>Status</th>
         <th>Kelas Kematangan</th>
         <th>Confidence</th>
         <th>Koordinat BBox [x, y, w, h]</th>
@@ -290,6 +295,7 @@ export const sessionRoutes = new Elysia({ prefix: "/api" })
           <td>${idx + 1}</td>
           <td>${new Date(d.detected_at).toLocaleTimeString("id-ID")}</td>
           <td>${d.track_id ?? "-"}</td>
+          <td><span class="badge" style="background: ${d.is_duplicate ? '#fee2e2; color: #991b1b' : '#dcfce7; color: #166534'}">${d.is_duplicate ? 'Duplikat' : 'Baru'}</span></td>
           <td><strong>${d.label}</strong></td>
           <td>${(d.confidence * 100).toFixed(1)}%</td>
           <td>[${d.x}, ${d.y}, ${d.w}, ${d.h}]</td>
