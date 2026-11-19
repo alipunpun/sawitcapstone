@@ -112,3 +112,18 @@ export function getDetectionCountBySession(sessionId: string): number {
 
   return row ? Number(row.total) : 0;
 }
+
+/**
+ * Mengambil total deteksi TBS unik (bukan duplikat) pada suatu sesi (Step 10 Deduplikasi).
+ */
+export function getUniqueDetectionCountBySession(sessionId: string): number {
+  const row = db
+    .query(
+      `SELECT COUNT(*) as unique_total
+       FROM detection_events
+       WHERE session_id = ? AND is_duplicate = 0;`
+    )
+    .get(sessionId) as { unique_total: number } | null;
+
+  return row ? Number(row.unique_total) : 0;
+}

@@ -21,6 +21,8 @@ export interface Detection {
   y: number;
   w: number;
   h: number;
+  track_id?: string;
+  is_duplicate?: boolean;
 }
 
 export interface DetectionRecord {

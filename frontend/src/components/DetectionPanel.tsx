@@ -103,6 +103,11 @@ export function DetectionPanel({ detections }: Props) {
                 </div>
 
                 <div className={styles.itemMeta}>
+                  {d.track_id && (
+                    <span className={styles.box} style={{ fontWeight: 600, color: d.is_duplicate ? '#ca8a04' : '#16a34a' }}>
+                      {d.track_id} ({d.is_duplicate ? "Duplikat" : "Baru"})
+                    </span>
+                  )}
                   <span className={styles.box}>
                     Posisi: [{d.x}, {d.y}] · {d.w}×{d.h}px
                   </span>

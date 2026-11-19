@@ -18,6 +18,7 @@ export interface SessionRecord {
 export interface SessionSummaryRecord {
   session_id: string;
   total_tbs: number;
+  unique_tbs: number;
   ripe_count: number;
   underripe_count: number;
   unripe_count: number;
@@ -65,9 +66,9 @@ export function createSession(params?: {
   // Inisialisasi entri di session_summaries
   db.run(
     `INSERT INTO session_summaries (
-       session_id, total_tbs, ripe_count, underripe_count, unripe_count,
+       session_id, total_tbs, unique_tbs, ripe_count, underripe_count, unripe_count,
        abnormal_count, flower_count, harvest_readiness_pct
-     ) VALUES (?, 0, 0, 0, 0, 0, 0, 0.0);`,
+     ) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0.0);`,
     [id]
   );
 
@@ -129,7 +130,7 @@ export function getSessionById(id: string): SessionRecord | null {
 export function getSessionSummary(sessionId: string): SessionSummaryRecord | null {
   const row = db
     .query(
-      `SELECT session_id, total_tbs, ripe_count, underripe_count,
+      `SELECT session_id, total_tbs, unique_tbs, ripe_count, underripe_count,
               unripe_count, abnormal_count, flower_count, harvest_readiness_pct
        FROM session_summaries
        WHERE session_id = ?;`
@@ -142,13 +143,25 @@ export function getSessionSummary(sessionId: string): SessionSummaryRecord | nul
 /**
  * Menghitung ulang ringkasan sesi dari data deteksi aktual di detection_events
  * dan memperbarui tabel session_summaries.
+ * Step 10: Menggunakan filter is_duplicate = 0 untuk statistik TBS unik.
  */
 export function recalculateSessionSummary(sessionId: string): SessionSummaryRecord {
-  const rows = db
+  // Total semua event deteksi yang tercatat
+  const totalRow = db
+    .query(
+      `SELECT COUNT(*) as total
+       FROM detection_events
+       WHERE session_id = ?;`
+    )
+    .get(sessionId) as { total: number } | null;
+  const totalTbs = totalRow ? Number(totalRow.total) : 0;
+
+  // Agregasi deteksi unik (Step 10: filter is_duplicate = 0)
+  const uniqueRows = db
     .query(
       `SELECT label, COUNT(*) as count
        FROM detection_events
-       WHERE session_id = ?
+       WHERE session_id = ? AND is_duplicate = 0
        GROUP BY label;`
     )
     .all(sessionId) as Array<{ label: string; count: number }>;
@@ -161,12 +174,30 @@ export function recalculateSessionSummary(sessionId: string): SessionSummaryReco
     Flower: 0,
   };
 
-  let totalTbs = 0;
-  for (const r of rows) {
+  let uniqueTbs = 0;
+  for (const r of uniqueRows) {
     if (r.label in counts) {
       counts[r.label] = Number(r.count);
     }
-    totalTbs += Number(r.count);
+    uniqueTbs += Number(r.count);
+  }
+
+  // Fallback jika semua record belum memiliki flag deduplikasi
+  if (uniqueTbs === 0 && totalTbs > 0) {
+    const allRows = db
+      .query(
+        `SELECT label, COUNT(*) as count
+         FROM detection_events
+         WHERE session_id = ?
+         GROUP BY label;`
+      )
+      .all(sessionId) as Array<{ label: string; count: number }>;
+    for (const r of allRows) {
+      if (r.label in counts) {
+        counts[r.label] = Number(r.count);
+      }
+      uniqueTbs += Number(r.count);
+    }
   }
 
   const fruitTotal =
@@ -176,11 +207,12 @@ export function recalculateSessionSummary(sessionId: string): SessionSummaryReco
 
   db.run(
     `INSERT INTO session_summaries (
-       session_id, total_tbs, ripe_count, underripe_count,
+       session_id, total_tbs, unique_tbs, ripe_count, underripe_count,
        unripe_count, abnormal_count, flower_count, harvest_readiness_pct
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(session_id) DO UPDATE SET
        total_tbs = excluded.total_tbs,
+       unique_tbs = excluded.unique_tbs,
        ripe_count = excluded.ripe_count,
        underripe_count = excluded.underripe_count,
        unripe_count = excluded.unripe_count,
@@ -190,6 +222,7 @@ export function recalculateSessionSummary(sessionId: string): SessionSummaryReco
     [
       sessionId,
       totalTbs,
+      uniqueTbs,
       counts.Ripe,
       counts.Underripe,
       counts.Unripe,
@@ -202,6 +235,7 @@ export function recalculateSessionSummary(sessionId: string): SessionSummaryReco
   return {
     session_id: sessionId,
     total_tbs: totalTbs,
+    unique_tbs: uniqueTbs,
     ripe_count: counts.Ripe,
     underripe_count: counts.Underripe,
     unripe_count: counts.Unripe,

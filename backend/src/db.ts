@@ -65,6 +65,7 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS session_summaries (
       session_id TEXT PRIMARY KEY,
       total_tbs INTEGER NOT NULL DEFAULT 0,
+      unique_tbs INTEGER NOT NULL DEFAULT 0,
       ripe_count INTEGER NOT NULL DEFAULT 0,
       underripe_count INTEGER NOT NULL DEFAULT 0,
       unripe_count INTEGER NOT NULL DEFAULT 0,
@@ -75,11 +76,20 @@ export function initDatabase() {
     );
   `);
 
+  // Migrasi kolom unique_tbs jika tabel dibuat pada Step 9 sebelumnya
+  try {
+    db.run("ALTER TABLE session_summaries ADD COLUMN unique_tbs INTEGER NOT NULL DEFAULT 0;");
+  } catch {
+    // Kolom sudah ada
+  }
+
   // Indeks untuk mempercepat pencarian deteksi per sesi dan filter waktu
   db.run(`CREATE INDEX IF NOT EXISTS idx_detection_session ON detection_events(session_id);`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_detection_time ON detection_events(detected_at);`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_detection_label ON detection_events(label);`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_detection_track ON detection_events(track_id);`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_detection_duplicate ON detection_events(is_duplicate);`);
 
   console.log(`[db] SQLite initialized at: ${DEFAULT_DB_PATH}`);
 }

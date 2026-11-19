@@ -17,11 +17,15 @@ import base64
 import io
 import json
 import logging
+import os
 import random
 import time
 from collections import deque
 from pathlib import Path
 from typing import Any
+
+# Pastikan folder konfigurasi Ultralytics berada lokal di dalam folder inference
+os.environ.setdefault("YOLO_CONFIG_DIR", str(Path(__file__).parent / ".ultralytics"))
 
 import cv2
 import numpy as np
@@ -37,6 +41,7 @@ from custom_yolo import apply_patches
 apply_patches(verbose=True)
 
 from ultralytics import YOLO
+from object_tracker import ObjectTracker
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -103,6 +108,9 @@ MODEL: Any = None
 # Label 5 kelas model CBAM (urutan sesuai nc: 5 pada yolo11s-cbam.yaml)
 CLASS_NAMES = ["Abnormal", "Flower", "Ripe", "Underripe", "Unripe"]
 
+# Step 10: Inisialisasi ObjectTracker untuk deduplikasi deteksi multi-frame
+TRACKER = ObjectTracker(iou_threshold=0.3, max_dist=80.0, max_age=30)
+
 
 def load_model() -> Any:
     """Load model YOLO dari file .pt yang tersedia."""
@@ -119,12 +127,18 @@ def load_model() -> Any:
         return None
 
 
-def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list[dict]:
+def run_inference(
+    model: Any,
+    frame_bgr: np.ndarray,
+    conf: float = 0.25,
+    tracker: Any = None,
+) -> list[dict]:
     """
-    Jalankan deteksi pada sebuah frame BGR.
+    Jalankan deteksi pada sebuah frame BGR dan pelacakan/deduplikasi objek (Step 10).
     Kembalikan list bounding box:
-      { label, confidence, x, y, w, h }   (koordinat dalam piksel)
+      { label, confidence, x, y, w, h, track_id, is_duplicate }
     """
+    active_tracker = tracker if tracker is not None else TRACKER
     if model is not None:
         results = model(frame_bgr, conf=conf, verbose=False)[0]
         detections = []
@@ -138,27 +152,31 @@ def run_inference(model: Any, frame_bgr: np.ndarray, conf: float = 0.25) -> list
                 "w": int(x2 - x1),
                 "h": int(y2 - y1),
             })
-        return detections
+    else:
+        # --- MOCK fallback jika model gagal diload ---
+        # 5 kelas sesuai model CBAM: Abnormal, Flower, Ripe, Underripe, Unripe
+        h, w = frame_bgr.shape[:2]
+        n = random.randint(0, 3)
+        detections = []
+        for _ in range(n):
+            bw = random.randint(40, 120)
+            bh = random.randint(40, 120)
+            bx = random.randint(0, max(1, w - bw))
+            by = random.randint(0, max(1, h - bh))
+            detections.append({
+                "label": random.choice(CLASS_NAMES),
+                "confidence": round(random.uniform(0.55, 0.99), 3),
+                "x": bx,
+                "y": by,
+                "w": bw,
+                "h": bh,
+            })
 
-    # --- MOCK fallback jika model gagal diload ---
-    # 5 kelas sesuai model CBAM: Abnormal, Flower, Ripe, Underripe, Unripe
-    h, w = frame_bgr.shape[:2]
-    n = random.randint(0, 3)
-    result = []
-    for _ in range(n):
-        bw = random.randint(40, 120)
-        bh = random.randint(40, 120)
-        bx = random.randint(0, max(1, w - bw))
-        by = random.randint(0, max(1, h - bh))
-        result.append({
-            "label": random.choice(CLASS_NAMES),
-            "confidence": round(random.uniform(0.55, 0.99), 3),
-            "x": bx,
-            "y": by,
-            "w": bw,
-            "h": bh,
-        })
-    return result
+    # Step 10: Integrasikan pelacakan objek untuk deduplikasi
+    if active_tracker is not None:
+        detections = active_tracker.update(detections)
+
+    return detections
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +210,7 @@ async def health() -> dict:
         "classes": MODEL.names if MODEL is not None else {i: c for i, c in enumerate(CLASS_NAMES)},
         "frames_processed": TOTAL_FRAMES,
         "fps": get_current_fps(),
+        "tracker": TRACKER.get_stats(),
         "timestamp": time.time(),
     }
 
@@ -209,8 +228,17 @@ async def stats() -> dict:
         "avg_latency_ms": avg_latency,
         "fps": get_current_fps(),
         "uptime_seconds": round(time.time() - START_TIME, 1),
+        "tracker": TRACKER.get_stats(),
         "timestamp": time.time(),
     }
+
+
+@app.post("/tracker/reset")
+async def reset_tracker() -> dict:
+    """Reset ObjectTracker state (active tracks, counters) saat sesi baru."""
+    TRACKER.reset()
+    log.info("[tracker] ObjectTracker berhasil direset.")
+    return {"status": "ok", "message": "Tracker reset successful", "tracker": TRACKER.get_stats()}
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +258,18 @@ async def ws_infer(ws: WebSocket) -> None:
             # Handle ping / heartbeat
             if payload.get("type") == "ping":
                 await ws.send_text(json.dumps({"type": "pong", "timestamp": time.time()}))
+                continue
+
+            # Handle tracker reset request
+            if payload.get("type") in ("reset_tracker", "reset_session"):
+                TRACKER.reset()
+                log.info("[ws] Tracker direset via WebSocket message.")
+                await ws.send_text(json.dumps({
+                    "type": "tracker_reset",
+                    "status": "ok",
+                    "tracker": TRACKER.get_stats(),
+                    "timestamp": time.time(),
+                }))
                 continue
 
             frame_b64: str = payload.get("frame", "")
